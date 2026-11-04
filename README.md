@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-表示されたURL（通常は http://localhost:3000 ）をブラウザで開きます。終了は`Ctrl+C`です。APIキーや環境変数は不要です。
+表示されたURL（通常は http://localhost:3000 ）をブラウザで開きます。終了は`Ctrl+C`です。画面表示だけなら環境変数は不要です。DB接続確認には`.env.example`の変数が必要です（後述）。
 
 ロックファイルどおりに再インストールする場合は`npm ci`を使用できます。
 
@@ -88,15 +88,15 @@ src/
 - ESLintはNext.js配下の各プラグインのpeer依存と整合する9.39.5を採用。npmからサポート終了警告が出ています。ESLint 10では一部プラグインのpeer依存が不整合となるため、プラグイン対応後にまとめて更新してください。
 - `npm audit`で開発ツールのESLint系依存（minimatchのglob処理に由来）に中程度16件の報告があります。破壊的なダウングレードや強制overrideは行っていません。外部由来のglobパターンを開発ツールに渡さず、上流の対応を確認して更新してください。
 
-## 公開・DB基盤の準備（2026-11-04）
+## 公開・DB基盤（2026-11-04）
 
-Vercel・Supabaseを先に整える方針に変更しました。手順と未完了事項は`docs/infrastructure.md`を参照してください。
+GitHub・Vercel・Supabaseへ接続済みです。接続先、設定、検証範囲、今後の運用は[基盤の手順書](docs/infrastructure.md)を参照してください。
 
-- `.github/workflows/ci.yml`: mainへのpushとPRでインストール・lint・型・ビルドを検証
-- `vercel.json`: インストールとチェック付きビルドを指定
-- `.nvmrc`: CI・公開環境の推奨Node.js 22
-- `.env.example`: Supabase接続設定の見本（まだアプリからは未使用）
-- `supabase/migrations/`: カメラテーブルとRLSの初期SQL（リモート未適用）
-- `npm run check`: lintと型チェック。型チェックではNext.jsの型生成を先に実行
+- GitHub: https://github.com/Mizuckey/madotabi
+- Vercel: https://madotabi.vercel.app （Vercel認証で保護）
+- Supabase: madotabi（東京）、カメラテーブルとRLSを適用済み
+- CI: mainへのpushとPRでlint・型・ビルドを検証
+- サーバー側のDB接続確認: GET /api/health
+- 設定: .env.exampleを参照。publishable keyを使用し、追加SDKは不要
 
-以前の「DBは未導入」という記述は初回MVP時点の状態です。現在もSDK・DB取得処理は未導入で、リモート接続後に追加する予定です。GitHub連携・Vercelでの公開・Supabaseへの適用は、ローカルファイルの作成とは別に実施・検証が必要です。
+カメラ表示は引き続き静的サンプルです。次はDBからのカメラ取得とYouTube再生を実装します。以前の「DB未導入」の記述は初回骨組み作成時点の記録です。
