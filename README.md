@@ -100,3 +100,11 @@ GitHub・Vercel・Supabaseへ接続済みです。接続先、設定、検証範
 - 設定: .env.exampleを参照。publishable keyを使用し、追加SDKは不要
 
 カメラ表示は引き続き静的サンプルです。次はDBからのカメラ取得とYouTube再生を実装します。以前の「DB未導入」の記述は初回骨組み作成時点の記録です。
+
+## YouTube URL管理画面
+
+[管理画面](https://madotabi.vercel.app/admin)から、スマホ・PCでYouTubeのURLを登録候補として保存できます。タイトル・メモは任意、同じ動画の重複は防止します。管理者のメール確認とログインが必要です。
+
+初回登録・Supabaseの認証URL設定・権限設計は[管理画面の手順](docs/admin.md)を参照してください。認証とセッション更新には公式SDK `@supabase/supabase-js` を導入しました。以前の「SDK・認証は未導入」という記述は初期構築時点の記録です。
+
+`npm run check`にはNode.js標準テストによるURL検証も含まれます。テストフレームワークは導入していません。

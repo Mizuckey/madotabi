@@ -10,7 +10,8 @@ export function Header() {
         <span>SORAMIRU</span>
       </Link>
       <span className="header-caption">日々のそばに、日本の景色。</span>
-      <div className="header-actions" aria-label="今後追加する機能">
+      <div className="header-actions" aria-label="ヘッダー操作">
+        <Link href="/admin" prefetch={false} className="admin-nav-link">管理</Link>
         <span className="preview-badge">DEVELOPMENT PREVIEW</span>
         <button disabled title="設定は今後実装予定" className="icon-button" aria-label="設定（未実装）">⚙</button>
         <button disabled title="全画面表示は今後実装予定" className="icon-button" aria-label="全画面表示（未実装）">⛶</button>
