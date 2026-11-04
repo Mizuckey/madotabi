@@ -13,7 +13,7 @@
 
 ## ローカル起動
 
-Node.js 20.9以上とnpmが必要です。将来の運用にはサポート中のNode.js LTSを使用してください。
+Node.js 22.xとnpmが必要です。`.nvmrc`、GitHub Actions、VercelのNode.jsバージョンを22に揃えています。nvmを使用している場合は、先に`nvm install`と`nvm use`を実行してください。
 
 ```sh
 npm install

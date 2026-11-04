@@ -2,7 +2,7 @@
 
 ## 現在の状態
 
-ローカルにCI定義・Vercel設定・初期DBマイグレーションを準備済みです。GitHub上でのリポジトリ作成、Vercelプロジェクト作成・デプロイ、Supabaseプロジェクト作成・SQL適用はまだ完了していません。接続確認後に対象のアカウント・プロジェクトを選んで実施します。
+GitHubリポジトリは https://github.com/Mizuckey/madotabi です。初回コミット 1cb820c をpushし、GitHub ActionsのCI成功を確認しました。Vercelは Mizuki Ouchi’s projects / madotabi に作成し、Node.js 22.xを設定しています。Supabaseは作成先組織の確認待ちで、プロジェクト作成・SQL適用・アプリ接続は未完了です。
 
 現在の画面は引き続き静的なサンプルを使用します。環境変数を設定するだけではDBへ接続しません。DB適用・アクセス制御の検証後に、サーバー側のカメラ取得処理を追加します。
 
@@ -25,7 +25,7 @@ VercelのGit連携でデプロイし、Actionsはチェックだけを担当し�
 
 ## GitHub
 
-新規のプライベートリポジトリに、このプロジェクトのルートを登録します。アカウント・組織・リポジトリ名は接続後に決定します。
+ユーザーが作成した Mizuckey/madotabi に、このプロジェクトのルートを登録済みです。作成時点のリポジトリはpublicです。アプリの表示名は現段階ではSORAMIRUのままです。
 
 `.env.local`、`.vercel/`、`node_modules/`、`.next/`、`work/`はGitへ追加しません。`.env.example`は空の設定見本として追跡します。`next-env.d.ts`はNext.jsが生成し、型チェックは`next typegen`で必要な型を先に生成するため、クリーンチェックアウトでも実行できます。
 
@@ -74,7 +74,7 @@ CLIによるローカルDB（Docker）は今回導入していません。CLIで
 
 ## 完了チェック
 
-- [ ] GitHubへの初回pushとCI成功
+- [x] GitHubへの初回pushとCI成功
 - [ ] Vercelの初回デプロイ成功・URL確認
 - [ ] PRでプレビュー作成、本番ブランチの設定を確認
 - [ ] Supabaseの適用先を確定し、初期マイグレーション適用
@@ -86,4 +86,4 @@ CLIによるローカルDB（Docker）は今回導入していません。CLIで
 - Vercel Git連携: https://vercel.com/docs/git
 - Vercel設定: https://vercel.com/docs/project-configuration
 - Supabase RLS: https://supabase.com/docs/guides/database/postgres/row-level-security
-- Supabase APIキー: https://supabase.com/docs/guides/api/api-keys
+- Supabase APIキー: https://supabase.com/docs/guides/getting-started/api-keys
