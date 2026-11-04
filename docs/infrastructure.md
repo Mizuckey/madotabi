@@ -6,7 +6,7 @@
 | --- | --- |
 | GitHub | https://github.com/Mizuckey/madotabi （ユーザー作成のpublicリポジトリ） |
 | Vercel | Mizuki Ouchi's projects / madotabi |
-| 本番URL | https://madotabi.vercel.app （Vercel認証で保護） |
+| 本番URL | https://madotabi.vercel.app （本番エイリアスはログイン不要） |
 | Supabase | Mizuckey's Org / madotabi / 東京（ap-northeast-1） |
 | Supabase project ref | `udyuftpysfagdnkoqxvq` |
 | Node.js | 22.x（package.json / .nvmrc / CI / Vercelで統一） |
@@ -70,7 +70,7 @@ curl -i http://localhost:3000/api/health
 
 初回デプロイ成功と、mainへのpushによる自動デプロイを確認済みです。その他のブランチのプレビューはVercelのGit連携を利用します。PRによるプレビュー確認・マージ必須チェック設定は今後の運用時に確認します。
 
-既定のVercel Deployment Protectionは維持しています。本番を一般公開する場合は、公開範囲を決めて別途設定します。ログ転送先・外部監視は未導入です。
+既定のVercel Deployment Protectionは維持しています。個別のデプロイURLは認証画面になりますが、本番エイリアス madotabi.vercel.app はログイン不要で閲覧できることを確認しました。ログ転送先・外部監視は未導入です。
 
 ## Supabase
 
@@ -103,7 +103,7 @@ SQL Editorから手動実行するだけではマイグレーション履歴が�
 - RLS: 一時的な非公開検証行を匿名ロールで読めないことを確認し、ロールバック。
 - REST: publishable keyで読み取りHTTP 200、書き込みHTTP 401を確認。
 - ローカル本番ビルド: ヘルスチェック正常時200、設定未投入時503、no-storeを確認。
-- リモートのブラウザ確認: Vercelログイン画面まで。保護を解除せず、認証後のAPI確認は未完了。
+- 本番API: https://madotabi.vercel.app/api/health をブラウザで開き、status: ok / database: connected を確認。個別のデプロイURLはVercelログイン画面まで確認。
 
 ## 公式資料
 

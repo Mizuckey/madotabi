@@ -93,7 +93,7 @@ src/
 GitHub・Vercel・Supabaseへ接続済みです。接続先、設定、検証範囲、今後の運用は[基盤の手順書](docs/infrastructure.md)を参照してください。
 
 - GitHub: https://github.com/Mizuckey/madotabi
-- Vercel: https://madotabi.vercel.app （Vercel認証で保護）
+- Vercel: https://madotabi.vercel.app （本番エイリアスはログイン不要）
 - Supabase: madotabi（東京）、カメラテーブルとRLSを適用済み
 - CI: mainへのpushとPRでlint・型・ビルドを検証
 - サーバー側のDB接続確認: GET /api/health
