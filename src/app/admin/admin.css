@@ -96,26 +96,29 @@
 .personal-shell .admin-session { border-top: 0; padding-top: 0; margin-bottom: 8px; }
 @media (max-width: 700px) { .personal-navigation { gap: 8px; } .personal-navigation button { flex: 1; min-width: 0; } }
 /* The viewing page occupies the viewport; forms and lists scroll within their own area. */
-.personal-shell { position: relative; max-width: none; height: 100dvh; padding: 0 16px; display: flex; flex-direction: column; overflow: hidden; }
+.personal-shell { position: relative; max-width: none; height: 100dvh; padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(16px, env(safe-area-inset-left)); display: flex; flex-direction: column; overflow: hidden; }
 .personal-shell .app-header { height: 48px; flex-shrink: 0; padding-right: 100px; gap: 20px; }
 .personal-shell .header-caption { display: none; }
 .personal-shell .personal-main { padding: 0 0 8px; min-height: 0; flex: 1; display: flex; flex-direction: column; }
-.personal-shell .admin-session { position: absolute; right: 16px; top: 2px; margin: 0; padding: 0; border: 0; z-index: 2; }
+.personal-shell .admin-session { position: absolute; right: max(16px, env(safe-area-inset-right)); top: calc(2px + env(safe-area-inset-top)); margin: 0; padding: 0; border: 0; z-index: 2; }
 .personal-shell .admin-session > div { display: none; }
 .personal-shell .admin-session button { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
 .personal-workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.personal-shell .personal-navigation { position: absolute; top: 2px; left: 150px; height: 44px; margin: 0; align-items: center; gap: 8px; }
+.personal-shell .personal-navigation { position: absolute; top: calc(2px + env(safe-area-inset-top)); left: calc(134px + max(16px, env(safe-area-inset-left))); height: 44px; margin: 0; align-items: center; gap: 8px; }
 .personal-shell .personal-navigation button { min-height: 40px; min-width: 125px; padding: 8px 14px; }
 .personal-stage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .personal-stage.is-library { display: block; overflow: auto; padding: 18px 8px; overscroll-behavior: contain; }
 .personal-shell .admin-auth-layout { overflow: auto; padding: 32px 8px; }
 .personal-shell .catalog-empty { margin: auto; width: 100%; max-height: 100%; overflow: auto; }
 @media (max-width: 600px) {
-  .personal-shell { padding: 0 10px; }
-  .personal-shell .app-header { padding-right: 85px; }
-  .personal-shell .admin-session { right: 10px; }
-  .personal-shell .personal-navigation { position: static; height: 48px; flex-shrink: 0; margin-bottom: 4px; }
-  .personal-shell .personal-navigation button { min-width: 0; }
+  .personal-shell { padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
+  .personal-shell .app-header { padding-right: 0; gap: 0; }
+  .personal-shell .brand { font-size: 16px; letter-spacing: 1px; gap: 6px; }
+  .personal-shell .brand svg { width: 22px; height: 22px; }
+  .personal-shell .admin-session { right: max(8px, env(safe-area-inset-right)); }
+  .personal-shell .admin-session button { padding: 8px 6px; font-size: 10px; }
+  .personal-shell .personal-navigation { left: calc(72px + max(8px, env(safe-area-inset-left))); right: calc(70px + max(8px, env(safe-area-inset-right))); gap: 0; }
+  .personal-shell .personal-navigation button { flex: 1; min-width: 0; min-height: 44px; padding: 8px 4px; font-size: 11px; white-space: nowrap; }
   .personal-stage.is-library { padding: 10px 0; }
 }
 /* On a wide screen, transport controls share the header to leave more room for scenery. */
@@ -177,3 +180,27 @@
 .personal-shell .scenery-location { grid-column: 1 / -1; color: #a1b8a8; font-size: 11px; margin: 3px 0 0; }
 .personal-stage.is-library .admin-add-card { position: static; }
 .location-picker summary { overflow-wrap: anywhere; }
+
+/* Match the desktop list's compact cards and framed editor on small screens. */
+@media (max-width: 600px) {
+  .personal-shell .admin-workspace { gap: 20px; }
+  .personal-shell .admin-card { padding: 16px; border-radius: 9px; }
+  .personal-shell .admin-card-heading { margin-bottom: 16px; }
+  .personal-shell .admin-library-header { gap: 8px; margin-bottom: 12px; }
+  .personal-shell .admin-item { grid-template-columns: minmax(0, 1fr); padding: 10px 12px; gap: 3px; }
+  .personal-shell .admin-item-top { gap: 6px; }
+  .personal-shell .admin-item-top time { font-size: 9px; }
+  .personal-shell .admin-item > .admin-video-actions { gap: 0 6px; }
+  .personal-shell .admin-item > .admin-video-actions button { min-height: 44px; padding: 8px 6px; }
+  .personal-shell .admin-item > .admin-video-actions .admin-watch-link { padding: 10px 0; }
+  .personal-shell .scenery-list-tabs { gap: 4px; margin-bottom: 12px; }
+  .personal-shell .admin-auth-layout { padding: 16px 0; }
+  .location-search-row { flex-wrap: wrap; }
+  .location-search-row input { flex-basis: 100%; }
+  .location-candidates button { overflow-wrap: anywhere; }
+}
+/* Very short windows / the software keyboard must still allow access to controls. */
+@media (max-height: 359px) {
+  .personal-shell .personal-main { overflow-y: auto; }
+  .personal-stage:not(.is-library) { flex-shrink: 0; min-height: 380px; }
+}

@@ -168,6 +168,35 @@ h1 { font-size: 22px; font-weight: 400; letter-spacing: 2px; margin: 0; }
   .watch-toolbar .rotation-toggle { padding-left: 10px; padding-right: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { .info-track { animation: none; } .info-viewport { overflow-x: auto; } }
-@media (max-height: 460px) { .personal-shell { height: auto; min-height: 100dvh; overflow: visible; } .personal-shell .personal-main { min-height: 360px; } }
-.weather-credit { flex-shrink: 0; color: #91a99a; font-size: 9px; padding: 8px; text-underline-offset: 3px; }
-.weather-credit { display: flex; gap: 6px; white-space: nowrap; }
+.weather-credit { flex-shrink: 0; color: #91a99a; font-size: 9px; padding: 8px; text-underline-offset: 3px; display: flex; gap: 6px; white-space: nowrap; }
+
+/* Keep the same viewing controls on phones, without squeezing the video or ticker. */
+@media (max-width: 600px) {
+  .compact-player { column-gap: 8px; }
+  .compact-player .player-caption { min-width: 0; min-height: 44px; font-size: 10px; }
+  .compact-player .player-caption > span { display: none; }
+  .compact-player .player-caption a { padding: 12px 0; white-space: nowrap; }
+  .compact-player .player-display-controls button { min-height: 44px; padding: 8px; white-space: nowrap; }
+  .watch-toolbar { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 0 8px; min-height: 88px; padding: 0; }
+  .watch-toolbar .transport { gap: 0; }
+  .watch-toolbar .transport button { width: 44px; padding: 8px; }
+  .watch-video-choice { width: 100%; max-width: none; }
+  .watch-interval { gap: 0; margin: 0; }
+  .watch-interval select { width: 64px; padding: 8px 2px; }
+  .watch-toolbar .rotation-toggle { justify-self: end; padding: 8px; }
+  .info-strip { display: grid; grid-template-columns: minmax(0, 1fr) 44px; height: 40px; }
+  .info-strip:has(.weather-credit) { height: 58px; grid-template-rows: 36px 20px; }
+  .info-viewport { grid-column: 1; grid-row: 1; width: 100%; }
+  .info-copy { gap: 24px; padding-left: 10px; padding-right: 24px; }
+  .info-strip button { grid-column: 2; grid-row: 1 / -1; height: 100%; padding: 0 6px; }
+  .weather-credit { grid-column: 1; grid-row: 2; padding: 0 10px 4px; gap: 10px; }
+}
+@media (min-width: 601px) and (max-width: 1099px) and (max-height: 500px) {
+  .watch-toolbar { flex-wrap: nowrap; gap: 4px; min-height: 48px; padding-top: 0; }
+  .watch-toolbar .transport { gap: 0; }
+  .watch-toolbar .watch-control { padding: 8px; }
+  .watch-video-choice { flex: 1; max-width: none; }
+  .watch-interval { gap: 2px; margin: 0; }
+  .watch-interval select { width: 70px; padding-left: 4px; padding-right: 4px; }
+  .compact-player .player-caption > span { display: none; }
+}
