@@ -8,7 +8,7 @@ import { WatchScreen } from "@/components/player/WatchScreen";
 type Row = { id: string; title: string; youtube_video_id: string };
 
 /** AdminConsoleの権限確認後にだけマウント。RLS付きの候補一覧を本人のセッションで読む。 */
-export function PrivateWatch({ supabase, initialVideoId }: { supabase: SupabaseClient; initialVideoId?: string }) {
+export function PrivateWatch({ supabase, userId, initialVideoId }: { supabase: SupabaseClient; userId: string; initialVideoId?: string }) {
   const [result, setResult] = useState<{ videos: CameraVideo[]; error: boolean } | null>(null);
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export function PrivateWatch({ supabase, initialVideoId }: { supabase: SupabaseC
     async function load() {
       const rows: Row[] = [];
       for (let offset = 0; ; offset += 100) {
-        const { data, error } = await supabase.from("camera_submissions").select("id,title,youtube_video_id").order("created_at", { ascending: false }).order("id").range(offset, offset + 99).abortSignal(controller.signal).returns<Row[]>();
+        const { data, error } = await supabase.from("camera_submissions").select("id,title,youtube_video_id").eq("created_by", userId).is("deleted_at", null).order("position").order("id").range(offset, offset + 99).abortSignal(controller.signal).returns<Row[]>();
         if (controller.signal.aborted) return;
         if (error) throw new Error("Private collection unavailable");
         rows.push(...(data ?? []));
@@ -26,7 +26,7 @@ export function PrivateWatch({ supabase, initialVideoId }: { supabase: SupabaseC
     }
     void load().catch(() => { if (!controller.signal.aborted) setResult({ videos: [], error: true }); });
     return () => controller.abort();
-  }, [supabase]);
+  }, [supabase, userId]);
 
   if (!result) return <section className="admin-card" role="status">登録動画を読み込んでいます…</section>;
   return <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId} />;

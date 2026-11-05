@@ -11,15 +11,20 @@ type Submission = {
   title: string;
   notes: string;
   created_at: string;
+  position: number;
+  deleted_at: string | null;
 };
-const fields = "id,youtube_video_id,youtube_url,title,notes,created_at";
-const pageSize = 20;
+const fields = "id,youtube_video_id,youtube_url,title,notes,created_at,position,deleted_at";
+const pageSize = 100;
 
 export function SubmissionManager({ supabase, userId, onWatch }: { supabase: SupabaseClient; userId: string; onWatch(videoId: string): void }) {
   const [items, setItems] = useState<Submission[]>([]);
-  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [changing, setChanging] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [message, setMessage] = useState("");
   const [listError, setListError] = useState("");
   const [url, setUrl] = useState("");
   const [touched, setTouched] = useState(false);
@@ -28,49 +33,70 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   const urlInput = useRef<HTMLInputElement>(null);
   const parsed = parseYouTubeUrl(url);
 
-  const loadFirstPage = useCallback(async (signal?: AbortSignal) => {
-    const query = supabase.from("camera_submissions").select(fields, { count: "exact" }).order("created_at", { ascending: false }).order("id").range(0, pageSize - 1);
-    const { data, count, error } = await (signal ? query.abortSignal(signal) : query).returns<Submission[]>();
-    if (signal?.aborted) return;
-    if (error) setListError("一覧を取得できませんでした。通信状況とログイン状態を確認して再度お試しください。");
-    else { setItems(data ?? []); setCount(count ?? 0); setListError(""); }
-    setLoading(false);
-  }, [supabase]);
+  const loadList = useCallback(async (signal?: AbortSignal) => {
+    const rows: Submission[] = [];
+    for (let offset = 0; ; offset += pageSize) {
+      const query = supabase.from("camera_submissions").select(fields).eq("created_by", userId).order("position").order("id").range(offset, offset + pageSize - 1);
+      const { data, error } = await (signal ? query.abortSignal(signal) : query).returns<Submission[]>();
+      if (signal?.aborted) return null;
+      if (error) throw new Error("List unavailable");
+      rows.push(...(data ?? []));
+      if (!data || data.length < pageSize) break;
+    }
+    return signal?.aborted ? null : [...new Map(rows.map(row => [row.id, row])).values()];
+  }, [supabase, userId]);
 
   useEffect(() => {
     const controller = new AbortController();
-    void supabase.from("camera_submissions").select(fields, { count: "exact" }).order("created_at", { ascending: false }).order("id").range(0, pageSize - 1).abortSignal(controller.signal).returns<Submission[]>().then(({ data, count, error }) => {
-      if (controller.signal.aborted) return;
-      if (error) setListError("一覧を取得できませんでした。再度お試しください。");
-      else { setItems(data ?? []); setCount(count ?? 0); setListError(""); }
-      setLoading(false);
-    }, () => {
-      if (!controller.signal.aborted) { setListError("一覧を取得できませんでした。再度お試しください。"); setLoading(false); }
-    });
+    void loadList(controller.signal).then(rows => { if (rows) { setItems(rows); setListError(""); } }).catch(() => { if (!controller.signal.aborted) setListError("景色リストを取得できませんでした。再度お試しください。"); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [supabase]);
+  }, [loadList]);
+
+  const active = items.filter(item => !item.deleted_at);
+  const deleted = items.filter(item => item.deleted_at);
+  const visible = showDeleted ? deleted : active;
+  const busy = loading || saving || changing;
 
   async function reload() {
     setLoading(true);
-    try { await loadFirstPage(); }
-    catch { setListError("一覧を取得できませんでした。再度お試しください。"); setLoading(false); }
+    try { const rows = await loadList(); if (rows) { setItems(rows); setListError(""); } }
+    catch { setListError("景色リストを取得できませんでした。再度お試しください。"); }
+    finally { setLoading(false); }
   }
 
-  async function loadMore() {
-    if (loadingMore) return;
-    setLoadingMore(true);
+  async function reorder(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (busy || target < 0 || target >= active.length) return;
+    const ids = active.map(item => item.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    setChanging(true); setActionError(""); setMessage("");
     try {
-      const { data, count, error } = await supabase.from("camera_submissions").select(fields, { count: "exact" }).order("created_at", { ascending: false }).order("id").range(items.length, items.length + pageSize - 1).returns<Submission[]>();
-      if (error) { setListError("続きを取得できませんでした。再度お試しください。"); return; }
-      setItems(current => [...current, ...(data ?? []).filter(item => !current.some(existing => existing.id === item.id))]);
-      setCount(count ?? 0); setListError("");
-    } catch { setListError("続きを取得できませんでした。再度お試しください。"); }
-    finally { setLoadingMore(false); }
+      const { error } = await supabase.rpc("reorder_camera_submissions", { ordered_ids: ids });
+      if (error) throw new Error("Reorder failed");
+      const rows = await loadList();
+      if (rows) { setItems(rows); setListError(""); }
+      setMessage("並び順を保存しました。この順番で再生します。");
+    } catch { setActionError("並び順の保存結果を確認できませんでした。リストを更新して、もう一度お試しください。"); }
+    finally { setChanging(false); }
+  }
+
+  async function changeDeleted(item: Submission, isDeleted: boolean) {
+    if (busy) return;
+    setChanging(true); setActionError(""); setMessage("");
+    try {
+      const { error } = await supabase.rpc("set_camera_submission_deleted", { submission_id: item.id, is_deleted: isDeleted });
+      if (error) throw new Error("Update failed");
+      const rows = await loadList();
+      if (rows) { setItems(rows); setListError(""); }
+      setConfirmDelete(null);
+      setMessage(isDeleted ? "景色を削除しました。「削除した景色」から元に戻せます。" : "景色をリストの末尾に戻しました。");
+    } catch { setActionError("変更結果を確認できませんでした。リストを更新して、もう一度お試しください。"); }
+    finally { setChanging(false); }
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving || loading || loadingMore) return;
+    if (saving || loading || changing) return;
     setSaveError(""); setTouched(true);
     if (!parsed) { setSaveError("YouTubeの動画URLを入力してください。watch・youtu.be・live形式などに対応しています。"); urlInput.current?.focus(); return; }
     const form = event.currentTarget;
@@ -81,7 +107,7 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
     try {
       const { error } = await supabase.from("camera_submissions").insert({ youtube_video_id: parsed.videoId, youtube_url: parsed.canonicalUrl, title, notes, created_by: userId });
       if (error) {
-        setSaveError(error.code === "23505" ? "この動画はすでに保存されています。登録済み一覧をご確認ください。" : "保存できませんでした。入力内容・通信状況・ログイン状態を確認して再度お試しください。");
+        setSaveError(error.code === "23505" ? "この動画は登録済みです。削除した場合は「削除した景色」から戻せます。" : "保存できませんでした。入力内容・通信状況・ログイン状態を確認して再度お試しください。");
         return;
       }
       form.reset(); setUrl(""); setTouched(false);
@@ -97,32 +123,42 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
         {saveError && <p className="admin-error" role="alert">{saveError}</p>}
         <form onSubmit={save} className="admin-form">
           <label htmlFor="camera-url">YouTube URL <span className="admin-required">必須</span></label>
-          <input ref={urlInput} id="camera-url" name="url" type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://www.youtube.com/watch?v=…" required maxLength={2048} value={url} onChange={e => { setUrl(e.target.value); setSaveError(""); }} onBlur={() => setTouched(true)} disabled={saving} aria-invalid={touched && !!url && !parsed} aria-describedby="url-help" />
+          <input ref={urlInput} id="camera-url" name="url" type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://www.youtube.com/watch?v=…" required maxLength={2048} value={url} onChange={e => { setUrl(e.target.value); setSaveError(""); }} onBlur={() => setTouched(true)} disabled={busy} aria-invalid={touched && !!url && !parsed} aria-describedby="url-help" />
           <p className="admin-field-hint" id="url-help">{parsed ? `動画ID：${parsed.videoId} · URLの形式を確認しました` : touched && url ? "YouTubeの動画URLを確認してください。" : "通常の動画URL、短縮URL、/live/ 形式に対応。"}</p>
           <details className="personal-details"><summary>タイトル・メモを追加（任意）</summary><div className="admin-form">
           <label htmlFor="camera-title">タイトル <span className="admin-optional">任意</span></label>
-          <input id="camera-title" name="title" type="text" maxLength={100} placeholder="例：海が見えるライブカメラ" disabled={saving} />
+          <input id="camera-title" name="title" type="text" maxLength={100} placeholder="例：海が見えるライブカメラ" disabled={busy} />
           <label htmlFor="camera-notes">メモ <span className="admin-optional">任意</span></label>
-          <textarea id="camera-notes" name="notes" rows={3} maxLength={1000} placeholder="場所や気づいたことなど" disabled={saving} />
+          <textarea id="camera-notes" name="notes" rows={3} maxLength={1000} placeholder="場所や気づいたことなど" disabled={busy} />
           </div></details>
-          <button className="admin-primary" type="submit" disabled={saving || loading || loadingMore}>{saving ? "保存しています…" : "保存して見る"}<span aria-hidden="true"> ＋</span></button>
+          <button className="admin-primary" type="submit" disabled={saving || loading || changing}>{saving ? "保存しています…" : "保存して見る"}<span aria-hidden="true"> ＋</span></button>
           <p className="admin-security-note">配信の実在・ライブ状態・埋め込み可否は未確認のまま保存されます。</p>
         </form>
       </section>
       <section className="admin-library" aria-labelledby="library-title">
-        <div className="admin-library-header"><div><span className="admin-step">02 / YOUR COLLECTION</span><h2 id="library-title">登録した動画 <span className="admin-count">{loading ? "—" : count}</span></h2></div><button className="admin-secondary" type="button" onClick={reload} disabled={loading || loadingMore || saving}>更新</button></div>
+        <div className="admin-library-header"><div><span className="admin-step">02 / YOUR COLLECTION</span><h2 id="library-title">景色リスト <span className="admin-count">{loading ? "—" : active.length}</span></h2></div><button className="admin-secondary" type="button" onClick={reload} disabled={busy}>更新</button></div>
+        <div className="scenery-list-tabs"><button className="admin-secondary" type="button" aria-pressed={!showDeleted} disabled={busy} onClick={() => { setShowDeleted(false); setConfirmDelete(null); }}>再生する景色</button><button className="admin-secondary" type="button" aria-pressed={showDeleted} disabled={busy} onClick={() => { setShowDeleted(true); setConfirmDelete(null); }}>削除した景色 ({deleted.length})</button></div>
+        {message && <p className="admin-notice" role="status">{message}</p>}
+        {actionError && <p className="admin-error" role="alert">{actionError}</p>}
         {listError && <div className="admin-error" role="alert">{listError} <button className="admin-text-button" onClick={reload} disabled={loading}>再取得</button></div>}
-        {loading ? <div className="admin-card admin-empty" role="status">登録した動画を読み込んでいます…</div> : items.length === 0 && !listError ? (
-          <div className="admin-card admin-empty"><span className="admin-empty-mark" aria-hidden="true">＋</span><h3>次に眺めたい景色を、ひとつ。</h3><p>保存したYouTube URLがここに並びます。<br />スマホで見つけたときにも、そのまま追加できます。</p></div>
+        {loading ? <div className="admin-card admin-empty" role="status">登録した動画を読み込んでいます…</div> : visible.length === 0 && !listError ? (
+          <div className="admin-card admin-empty"><span className="admin-empty-mark" aria-hidden="true">＋</span><h3>{showDeleted ? "削除した景色はありません" : "次に眺めたい景色を、ひとつ。"}</h3><p>{showDeleted ? "削除した景色はここからリストに戻せます。" : "URLを追加すると、ここに景色が並びます。"}</p></div>
         ) : (
-          <ul className="admin-items">{items.map(item => (
-            <li key={item.id} className="admin-item"><div className="admin-item-top"><span className="admin-item-label">登録した動画</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.notes && <p className="admin-item-notes">{item.notes}</p>}
-              <div className="admin-video-actions"><button className="admin-secondary" type="button" onClick={() => onWatch(item.youtube_video_id)}>この景色を見る →</button></div>
+          <ul className="admin-items">{visible.map((item, index) => (
+            <li key={item.id} className="admin-item"><div className="admin-item-top"><span className="admin-item-label">{showDeleted ? "削除済み" : `${index + 1} 番目`}</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.notes && <p className="admin-item-notes">{item.notes}</p>}
+              <div className="admin-video-actions">
+                {showDeleted ? <button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, false)}>リストに戻す</button> : <>
+                  <button className="admin-secondary" type="button" disabled={busy} onClick={() => onWatch(item.youtube_video_id)}>この景色を見る →</button>
+                  <button className="admin-secondary" type="button" disabled={busy || index === 0} aria-label={`${item.title || "この景色"}を上へ`} onClick={() => reorder(index, -1)}>↑ 上へ</button>
+                  <button className="admin-secondary" type="button" disabled={busy || index === active.length - 1} aria-label={`${item.title || "この景色"}を下へ`} onClick={() => reorder(index, 1)}>↓ 下へ</button>
+                  <button className="admin-text-button" type="button" disabled={busy} onClick={() => setConfirmDelete(item.id)}>削除</button>
+                </>}
+              </div>
+              {confirmDelete === item.id && !showDeleted && <div className="scenery-delete-confirm" role="group" aria-label="景色の削除確認"><p>この景色を再生リストから削除しますか？ 後から戻せます。</p><button className="admin-secondary" type="button" disabled={busy} onClick={() => setConfirmDelete(null)}>残す</button><button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, true)}>削除する</button></div>}
             </li>
           ))}</ul>
         )}
-        {!loading && items.length > 0 && items.length < count && <button className="admin-secondary admin-more" onClick={loadMore} disabled={loadingMore || saving}>{loadingMore ? "読み込み中…" : "さらに読み込む"}</button>}
-        <p className="admin-library-note">保存した動画とメモは、自分のアカウントだけで使えます。</p>
+        <p className="admin-library-note">上から順番に再生します。並び順と削除状態は保存され、削除した景色は後から戻せます。</p>
       </section>
     </div>
   );

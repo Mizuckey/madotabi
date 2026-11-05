@@ -130,3 +130,8 @@
   .personal-shell .compact-player .player-display-controls { position: absolute; bottom: 8px; right: 16px; height: 38px; }
   .personal-shell .info-strip { padding-right: 240px; }
 }
+.scenery-list-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.scenery-list-tabs [aria-pressed="true"] { background: #304b38; border-color: #8cae96; }
+.scenery-delete-confirm { margin-top: 14px; padding: 14px; border: 1px solid #705b4e; border-radius: 6px; background: #30271f; }
+.scenery-delete-confirm p { margin: 0 0 12px; font-size: 12px; line-height: 1.8; }
+.scenery-delete-confirm button { margin-right: 8px; }

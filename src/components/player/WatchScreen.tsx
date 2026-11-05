@@ -15,8 +15,8 @@ export function WatchScreen({ videos, loadError = false, singleVideo = false, in
   if (!videos.length) return (
     <section className="catalog-empty">
       <p className="eyebrow">CAMERA VIEW</p><h2>{loadError ? "動画の一覧を取得できませんでした" : "登録されている動画はまだありません"}</h2>
-      <p>{loadError ? "通信状況を確認して、もう一度お試しください。" : "「URLを追加」で動画を保存すると、ここで連続視聴できます。"}</p>
-      <div>{loadError && <button type="button" onClick={() => window.location.reload()}>再読み込み</button>}<Link href="/?view=add">URLを追加する →</Link></div>
+      <p>{loadError ? "通信状況を確認して、もう一度お試しください。" : "「景色リスト」で動画を保存すると、ここで連続視聴できます。"}</p>
+      <div>{loadError && <button type="button" onClick={() => window.location.reload()}>再読み込み</button>}<Link href="/?view=add">景色リストを開く →</Link></div>
     </section>
   );
 
@@ -26,9 +26,10 @@ export function WatchScreen({ videos, loadError = false, singleVideo = false, in
 function PlaylistScreen({ videos, singleVideo, initialVideoId }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId">) {
   const rotation = useCameraRotation(videos.length, Math.max(0, videos.findIndex(video => video.youtubeVideoId === initialVideoId)));
   const video = videos[rotation.index];
+  const onPlaybackChange = rotation.onPlaybackChange;
   const reportPlayback = useCallback((videoId: string, status: PlaybackStatus) => {
-    if (videoId === video.youtubeVideoId) rotation.onPlaybackChange(status);
-  }, [video.youtubeVideoId, rotation.onPlaybackChange]);
+    if (videoId === video.youtubeVideoId) onPlaybackChange(status);
+  }, [video.youtubeVideoId, onPlaybackChange]);
 
   return (
     <div className="watch-screen" data-selected-video={video.youtubeVideoId}>

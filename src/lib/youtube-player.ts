@@ -3,6 +3,7 @@ export type PlaybackStatus = "loading" | "ready" | "playing" | "paused" | "buffe
 export interface YouTubePlayer {
   mute(): void;
   playVideo(): void;
+  pauseVideo(): void;
   loadVideoById(videoId: string): void;
   getVideoData(): { video_id?: string };
   destroy(): void;
