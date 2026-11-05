@@ -5,9 +5,7 @@ import { useCallback } from "react";
 import type { PlaybackStatus } from "@/lib/youtube-player";
 import type { CameraVideo } from "@/types/video";
 import { CameraPlayer } from "./CameraPlayer";
-import { CameraInfo } from "@/components/camera/CameraInfo";
-import { CameraMap } from "@/components/map/CameraMap";
-import { WeatherInfo } from "@/components/weather/WeatherInfo";
+import { InfoTicker } from "./InfoTicker";
 import { useCameraRotation } from "@/hooks/useCameraRotation";
 import { ROTATION_INTERVALS } from "@/lib/rotation";
 
@@ -28,32 +26,23 @@ export function WatchScreen({ videos, loadError = false, singleVideo = false, in
 function PlaylistScreen({ videos, singleVideo, initialVideoId }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId">) {
   const rotation = useCameraRotation(videos.length, Math.max(0, videos.findIndex(video => video.youtubeVideoId === initialVideoId)));
   const video = videos[rotation.index];
-  const collectionName = "登録動画";
   const reportPlayback = useCallback((videoId: string, status: PlaybackStatus) => {
     if (videoId === video.youtubeVideoId) rotation.onPlaybackChange(status);
   }, [video.youtubeVideoId, rotation.onPlaybackChange]);
 
   return (
-    <div className="view-layout" data-selected-video={video.youtubeVideoId}>
-      <div className="view-main">
-        <CameraPlayer video={video} onPlaybackChange={reportPlayback} />
-        <section className="playback-controls active-controls" aria-labelledby="controls-title">
-          <div className="control-description"><h2 id="controls-title">{singleVideo ? "動画単体の視聴" : "カメラを選ぶ"}</h2><p>{singleVideo ? "このURLから動画を確認できます" : `${rotation.index + 1} / ${videos.length} 件`}</p></div>
-          {!singleVideo && <><div className="transport"><button type="button" className="watch-control" onClick={() => rotation.move(-1)} disabled={videos.length < 2} aria-label="前のカメラ">← 前へ</button><button type="button" className="watch-control" onClick={() => rotation.move(1)} disabled={videos.length < 2} aria-label="次のカメラ">次へ →</button></div><label className="video-select-label" htmlFor="video-select"><span className="sr-only">視聴するカメラ</span><select id="video-select" value={video.id} onChange={e => rotation.select(videos.findIndex(item => item.id === e.target.value))}>{videos.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label></>}
-          {singleVideo && <div className="single-video-links"><Link className="watch-home-link" href="/">登録動画を連続視聴 →</Link></div>}
-        </section>
-        {!singleVideo && <section className="rotation-controls" aria-label="自動切替設定" data-rotation-active={rotation.automatic}>
-          <div className="rotation-status"><span className={`rotation-indicator${rotation.automatic ? " is-active" : ""}`} /><div><h2>{videos.length < 2 ? "動画が2件以上で自動切替できます" : rotation.counting ? "自動で景色を切り替えています" : rotation.automatic ? "再生を待ってから切り替えます" : "自動切替を一時停止中"}</h2><p aria-live="off">{videos.length < 2 ? "今の動画をそのまま再生します" : rotation.counting ? <>次の景色まで <span className="rotation-countdown">{rotation.remainingSeconds}</span> 秒</> : rotation.automatic ? `読み込み・再生停止中は残り ${rotation.remainingSeconds} 秒を保持` : `再開まで残り ${rotation.remainingSeconds} 秒を保持`}</p></div></div>
-          <div className="rotation-actions"><label htmlFor="rotation-interval">切替間隔<select id="rotation-interval" value={rotation.intervalSeconds} disabled={videos.length < 2} onChange={e => rotation.changeInterval(Number(e.target.value))}>{ROTATION_INTERVALS.map(seconds => <option key={seconds} value={seconds}>{seconds}秒</option>)}</select></label><button className="watch-control" type="button" disabled={videos.length < 2} aria-pressed={rotation.automatic} onClick={rotation.toggleAutomatic}>{rotation.automatic ? "自動切替を停止" : "自動切替を再開"}</button></div>
-        </section>}
-        <p className="development-note">{singleVideo ? "連続視聴では複数の景色を自動で切り替えられます。" : "再生中の時間を数えて切り替えます。読み込み・一時停止中はカウントを止めます。"} 配信状況はYouTube側で変わる場合があります。</p>
-      </div>
-      <aside className="side-panel" aria-label="カメラ詳細">
-        <CameraInfo video={video} />
-        {!singleVideo && <section className="panel-section"><div className="section-top"><h2>{collectionName}</h2><span className="muted-label">{videos.length} 件</span></div><ul className="camera-selector">{videos.map((item, index) => <li key={item.id}><button type="button" aria-pressed={item.id === video.id} onClick={() => rotation.select(index)}>{item.title}<span aria-hidden="true">↗</span></button></li>)}</ul></section>}
-        <CameraMap /><WeatherInfo />
-        <div className="panel-footer">風景を眺める、余白の時間。</div>
-      </aside>
+    <div className="watch-screen" data-selected-video={video.youtubeVideoId}>
+      <CameraPlayer video={video} onPlaybackChange={reportPlayback} compact />
+      <InfoTicker key={video.id} title={video.title} />
+      <section className="watch-toolbar" aria-label="再生切替" data-rotation-active={rotation.automatic}>
+        {!singleVideo ? <>
+          <div className="transport"><button type="button" className="watch-control" onClick={() => rotation.move(-1)} disabled={videos.length < 2} aria-label="前のカメラ">←</button><button type="button" className="watch-control" onClick={() => rotation.move(1)} disabled={videos.length < 2} aria-label="次のカメラ">→</button></div>
+          <label className="watch-video-choice" htmlFor="video-select"><span className="sr-only">視聴するカメラ</span><select id="video-select" value={video.id} onChange={e => rotation.select(videos.findIndex(item => item.id === e.target.value))}>{videos.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
+          <label className="watch-interval" htmlFor="rotation-interval"><span>切替</span><select id="rotation-interval" value={rotation.intervalSeconds} disabled={videos.length < 2} onChange={e => rotation.changeInterval(Number(e.target.value))}>{ROTATION_INTERVALS.map(seconds => <option key={seconds} value={seconds}>{seconds}秒</option>)}</select></label>
+          <button className="watch-control rotation-toggle" type="button" disabled={videos.length < 2} aria-pressed={rotation.automatic} onClick={rotation.toggleAutomatic}>{rotation.automatic ? "自動切替を停止" : "自動切替を再開"}</button>
+          <p className="watch-countdown" aria-live="off">{videos.length < 2 ? "1件を再生" : rotation.counting ? <>次まで <span className="rotation-countdown">{rotation.remainingSeconds}</span> 秒</> : rotation.automatic ? `再生待ち · 残り${rotation.remainingSeconds}秒` : `停止中 · 残り${rotation.remainingSeconds}秒`}</p>
+        </> : <Link className="watch-home-link" href="/">登録動画を連続視聴 →</Link>}
+      </section>
     </div>
   );
 }

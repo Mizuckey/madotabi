@@ -12,5 +12,5 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
   const key = process.env.SUPABASE_PUBLISHABLE_KEY;
   return <div className="app-shell personal-shell"><Header /><main className="personal-main">
     {url && key ? <AdminConsole key={view === "add" ? "add" : "watch"} supabaseUrl={url} publishableKey={key} initialView={view === "add" ? "add" : "watch"} /> : <section className="admin-card"><h1>接続の準備中です</h1><p>しばらくしてから、もう一度お試しください。</p></section>}
-  </main><footer className="app-footer"><span>窓旅</span><p>好きな景色を、日々のそばに。</p></footer></div>;
+  </main></div>;
 }

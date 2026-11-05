@@ -12,11 +12,11 @@ export function PersonalWorkspace({ supabase, userId, initialView }: { supabase:
     setInitialVideoId(videoId);
     setView("watch");
   }
-  return <>
+  return <div className="personal-workspace">
     <nav className="personal-navigation" aria-label="画面切替">
       <button type="button" className="admin-secondary" aria-pressed={view === "watch"} onClick={() => watch()}>景色を見る</button>
       <button type="button" className="admin-secondary" aria-pressed={view === "add"} onClick={() => setView("add")}>＋ URLを追加</button>
     </nav>
-    {view === "watch" ? <PrivateWatch supabase={supabase} initialVideoId={initialVideoId} /> : <SubmissionManager supabase={supabase} userId={userId} onWatch={watch} />}
-  </>;
+    <div className={`personal-stage${view === "add" ? " is-library" : ""}`}>{view === "watch" ? <PrivateWatch supabase={supabase} initialVideoId={initialVideoId} /> : <SubmissionManager supabase={supabase} userId={userId} onWatch={watch} />}</div>
+  </div>;
 }

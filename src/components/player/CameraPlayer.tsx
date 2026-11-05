@@ -5,16 +5,16 @@ import type { CameraVideo } from "@/types/video";
 import { buildYouTubeEmbedUrl, loadYouTubeAPI, youtubePlayerError, type YouTubePlayer, type PlaybackStatus } from "@/lib/youtube-player";
 
 const labels: Record<PlaybackStatus, string> = { loading: "読み込み中", ready: "再生を準備しています", playing: "再生中", paused: "一時停止中", buffering: "バッファリング中", ended: "動画が終了しました", blocked: "再生操作が必要です", error: "再生できません" };
-type Props = { video: CameraVideo; onPlaybackChange?(videoId: string, status: PlaybackStatus): void };
+type Props = { compact?: boolean; video: CameraVideo; onPlaybackChange?(videoId: string, status: PlaybackStatus): void };
 
-export function CameraPlayer({ video, onPlaybackChange }: Props) {
+export function CameraPlayer({ video, onPlaybackChange, compact = false }: Props) {
   const [attempt, setAttempt] = useState(0);
   const [showControls, setShowControls] = useState(false);
   // 動画IDでkeyを変えず、再試行・操作バー設定の変更時だけプレーヤー自体を作り直す。
-  return <YouTubeEmbed key={`${attempt}:${showControls}`} showControls={showControls} onToggleControls={() => { onPlaybackChange?.(video.youtubeVideoId, "loading"); setShowControls(value => !value); }} video={video} onPlaybackChange={onPlaybackChange} onRetry={() => { onPlaybackChange?.(video.youtubeVideoId, "loading"); setAttempt(value => value + 1); }} />;
+  return <YouTubeEmbed compact={compact} key={`${attempt}:${showControls}`} showControls={showControls} onToggleControls={() => { onPlaybackChange?.(video.youtubeVideoId, "loading"); setShowControls(value => !value); }} video={video} onPlaybackChange={onPlaybackChange} onRetry={() => { onPlaybackChange?.(video.youtubeVideoId, "loading"); setAttempt(value => value + 1); }} />;
 }
 
-function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggleControls }: Props & { onRetry(): void; showControls: boolean; onToggleControls(): void }) {
+function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggleControls, compact }: Props & { onRetry(): void; showControls: boolean; onToggleControls(): void }) {
   const host = useRef<HTMLDivElement>(null);
   const initialControls = useRef(showControls);
   const player = useRef<YouTubePlayer | null>(null);
@@ -111,14 +111,14 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggle
   useEffect(() => { load.current?.(); }, [video.youtubeVideoId]);
 
   return (
-    <div className="camera-player">
+    <div className={`camera-player${compact ? " compact-player" : ""}`}>
       <section className="player player-live" aria-label={`${video.title}のプレーヤー領域`} data-playback-status={status}>
         <div className="youtube-host" ref={host} />
       </section>
       <div className="player-caption"><span role="status"><span className="status-dot" /> {labels[status]}</span><a href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`} target="_blank" rel="noopener noreferrer">YouTubeで開く ↗</a></div>
       {status === "error" && <div className="player-error" role="alert"><h2>この動画を再生できません</h2><p>{result.error}</p><div><button type="button" onClick={onRetry}>再試行</button><a href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`} target="_blank" rel="noopener noreferrer">YouTubeで開く ↗</a></div></div>}
       <div className="player-display-controls"><button type="button" aria-pressed={showControls} onClick={onToggleControls}>{showControls ? "操作バーを非表示" : "操作バーを表示"}</button><span>表示を切り替えると、動画をミュートで読み込み直します。</span></div>
-      {status === "blocked" ? <p className="playback-note">自動再生が制限されています。<button type="button" onClick={() => player.current?.playVideo()}>再生する</button>、または映像内の再生ボタンを押してください。</p> : <p className="playback-note">最初はミュートで再生します。「操作バーを表示」で音声・画質・全画面を操作できます。</p>}
+      {status === "blocked" ? <p className="playback-note playback-action">自動再生が制限されています。<button type="button" onClick={() => player.current?.playVideo()}>再生する</button>、または映像内の再生ボタンを押してください。</p> : <p className="playback-note">最初はミュートで再生します。「操作バーを表示」で音声・画質・全画面を操作できます。</p>}
     </div>
   );
 }

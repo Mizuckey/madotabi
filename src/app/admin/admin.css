@@ -95,3 +95,38 @@
 .personal-details[open] > .admin-form { margin-top: 6px; }
 .personal-shell .admin-session { border-top: 0; padding-top: 0; margin-bottom: 8px; }
 @media (max-width: 700px) { .personal-navigation { gap: 8px; } .personal-navigation button { flex: 1; min-width: 0; } }
+/* The viewing page occupies the viewport; forms and lists scroll within their own area. */
+.personal-shell { position: relative; max-width: none; height: 100dvh; padding: 0 16px; display: flex; flex-direction: column; overflow: hidden; }
+.personal-shell .app-header { height: 48px; flex-shrink: 0; padding-right: 100px; gap: 20px; }
+.personal-shell .header-caption { display: none; }
+.personal-shell .personal-main { padding: 0 0 8px; min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.personal-shell .admin-session { position: absolute; right: 16px; top: 2px; margin: 0; padding: 0; border: 0; z-index: 2; }
+.personal-shell .admin-session > div { display: none; }
+.personal-shell .admin-session button { min-height: 44px; padding-top: 8px; padding-bottom: 8px; }
+.personal-workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.personal-shell .personal-navigation { position: absolute; top: 2px; left: 150px; height: 44px; margin: 0; align-items: center; gap: 8px; }
+.personal-shell .personal-navigation button { min-height: 40px; min-width: 125px; padding: 8px 14px; }
+.personal-stage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.personal-stage.is-library { display: block; overflow: auto; padding: 18px 8px; overscroll-behavior: contain; }
+.personal-shell .admin-auth-layout { overflow: auto; padding: 32px 8px; }
+.personal-shell .catalog-empty { margin: auto; width: 100%; max-height: 100%; overflow: auto; }
+@media (max-width: 600px) {
+  .personal-shell { padding: 0 10px; }
+  .personal-shell .app-header { padding-right: 85px; }
+  .personal-shell .admin-session { right: 10px; }
+  .personal-shell .personal-navigation { position: static; height: 48px; flex-shrink: 0; margin-bottom: 4px; }
+  .personal-shell .personal-navigation button { min-width: 0; }
+  .personal-stage.is-library { padding: 10px 0; }
+}
+/* On a wide screen, transport controls share the header to leave more room for scenery. */
+@media (min-width: 1100px) {
+  .personal-shell .watch-toolbar { position: absolute; top: 2px; left: 430px; right: 110px; height: 44px; min-height: 44px; padding: 0; gap: 8px; }
+  .personal-shell .watch-toolbar .watch-video-choice { max-width: none; }
+  .personal-shell .watch-toolbar .watch-countdown { font-size: 10px; }
+  .personal-shell .watch-toolbar .watch-control { padding-left: 11px; padding-right: 11px; }
+  .personal-shell .compact-player { grid-template-rows: minmax(200px, 1fr); }
+  .personal-shell .compact-player .player-caption { position: absolute; bottom: 8px; right: 135px; width: 110px; min-height: 38px; height: 38px; margin: 0; }
+  .personal-shell .compact-player .player-caption > span { display: none; }
+  .personal-shell .compact-player .player-display-controls { position: absolute; bottom: 8px; right: 16px; height: 38px; }
+  .personal-shell .info-strip { padding-right: 240px; }
+}
