@@ -1,4 +1,4 @@
-export const ROTATION_INTERVALS = Array.from({ length: 60 }, (_, index) => index + 1);
+export const ROTATION_INTERVALS = [10, 20, 30, 40, 50, 60] as const;
 export const DEFAULT_ROTATION_SECONDS = 60;
 
 export function nextVideoIndex(index: number, count: number, direction: 1 | -1 = 1): number {
@@ -11,7 +11,7 @@ export type RotationTimer = { remaining(): number; cancel(): void };
 /** 単発の切替予約。遅延時もまとめて複数本進めず、1本だけ切り替える。 */
 export function startRotationTimer({ delayMs, onRemaining, onAdvance, now = () => performance.now() }: {
   delayMs: number;
-  onRemaining(remainingMs: number): void;
+  onRemaining?(remainingMs: number): void;
   onAdvance(): void;
   now?: () => number;
 }): RotationTimer {
@@ -27,9 +27,9 @@ export function startRotationTimer({ delayMs, onRemaining, onAdvance, now = () =
   const timeout = setTimeout(() => {
     if (cancelled) return;
     cancel();
-    onRemaining(0);
+    onRemaining?.(0);
     onAdvance();
   }, delayMs);
-  const heartbeat = setInterval(() => { if (!cancelled) onRemaining(remaining()); }, 1000);
+  const heartbeat = onRemaining ? setInterval(() => { if (!cancelled) onRemaining(remaining()); }, 1000) : undefined;
   return { remaining, cancel };
 }

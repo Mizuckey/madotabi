@@ -135,3 +135,13 @@
 .scenery-delete-confirm { margin-top: 14px; padding: 14px; border: 1px solid #705b4e; border-radius: 6px; background: #30271f; }
 .scenery-delete-confirm p { margin: 0 0 12px; font-size: 12px; line-height: 1.8; }
 .scenery-delete-confirm button { margin-right: 8px; }
+/* Quiet controls: keep type sizes and hit areas, remove permanent button frames. */
+.personal-shell :is(button, .personal-navigation button, .scenery-list-tabs button, .compact-player .player-display-controls button) { border: 0; background: transparent; box-shadow: none; color: #afc3b6; }
+.personal-shell button:hover:not(:disabled) { background: #a5bcb00c; color: #e0ece4; }
+.personal-shell button:disabled { opacity: .4; }
+.personal-shell .personal-navigation [aria-pressed="true"], .personal-shell .scenery-list-tabs [aria-pressed="true"] { color: #e0ece4; text-decoration: underline; text-underline-offset: 7px; }
+.personal-shell .watch-toolbar select { border: 0; background: transparent; }
+.personal-shell .catalog-empty a { border: 0; background: transparent; }
+.scenery-edit-form { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
+.scenery-edit-form .admin-video-actions { margin-top: 8px; }
+.scenery-edit-form .admin-primary { margin-top: 0; width: auto; }

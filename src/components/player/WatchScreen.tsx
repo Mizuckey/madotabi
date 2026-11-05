@@ -41,7 +41,6 @@ function PlaylistScreen({ videos, singleVideo, initialVideoId }: Required<Pick<P
           <label className="watch-video-choice" htmlFor="video-select"><span className="sr-only">視聴するカメラ</span><select id="video-select" value={video.id} onChange={e => rotation.select(videos.findIndex(item => item.id === e.target.value))}>{videos.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
           <label className="watch-interval" htmlFor="rotation-interval"><span>切替</span><select id="rotation-interval" value={rotation.intervalSeconds} disabled={videos.length < 2} onChange={e => rotation.changeInterval(Number(e.target.value))}>{ROTATION_INTERVALS.map(seconds => <option key={seconds} value={seconds}>{seconds}秒</option>)}</select></label>
           <button className="watch-control rotation-toggle" type="button" disabled={videos.length < 2} aria-pressed={rotation.automatic} onClick={rotation.toggleAutomatic}>{rotation.automatic ? "自動切替を停止" : "自動切替を再開"}</button>
-          <p className="watch-countdown" aria-live="off">{videos.length < 2 ? "1件を再生" : rotation.counting ? <>次まで <span className="rotation-countdown">{rotation.remainingSeconds}</span> 秒</> : rotation.automatic ? `再生待ち · 残り${rotation.remainingSeconds}秒` : `停止中 · 残り${rotation.remainingSeconds}秒`}</p>
         </> : <Link className="watch-home-link" href="/">登録動画を連続視聴 →</Link>}
       </section>
     </div>

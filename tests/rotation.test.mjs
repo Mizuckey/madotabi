@@ -65,3 +65,12 @@ test('残り時間は負にならず、遅延で複数動画を飛ばさない',
 test('不正な時間は予約しない',()=>{
   for(const delayMs of [-1,NaN,Infinity])assert.throws(()=>startRotationTimer({delayMs,onRemaining:()=>{},onAdvance:()=>{}}));
 });
+
+test('カウントダウン表示を更新しなくても指定時間に一度だけ進む', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let advanced = 0;
+  const timer = startRotationTimer({ delayMs: 10000, onAdvance: () => advanced++ });
+  t.mock.timers.tick(9999); assert.equal(advanced, 0);
+  t.mock.timers.tick(1); assert.equal(advanced, 1);
+  timer.cancel(); t.mock.timers.tick(10000); assert.equal(advanced, 1);
+});

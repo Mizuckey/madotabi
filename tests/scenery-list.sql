@@ -30,21 +30,28 @@ begin
   insert into public.camera_submissions(id,youtube_video_id,youtube_url,title,created_by)
     values(test_id,video_id,'https://www.youtube.com/watch?v='||video_id,'rollback test',auth.uid());
   if not exists(select 1 from public.camera_submissions where id=test_id and deleted_at is null and position>max_position) then raise exception 'Insert must append'; end if;
-  begin update public.camera_submissions set title=title where id=first_id; exception when insufficient_privilege then denied:=true; end;
+  update public.camera_submissions set title='編集の検証', notes='更新したメモ' where id=first_id;
+  if not exists(select 1 from public.camera_submissions where id=first_id and title='編集の検証' and notes='更新したメモ') then raise exception 'Metadata edit failed'; end if;
+  begin update public.camera_submissions set title=repeat('a',101) where id=first_id; raise exception 'Invalid title accepted'; exception when check_violation then null; end;
+  begin update public.camera_submissions set youtube_url=youtube_url where id=first_id; exception when insufficient_privilege then denied:=true; end;
   if not denied then raise exception 'Unrelated column update must fail'; end if;
 end $$;
 rollback;
 
 begin;
+select set_config('test.scenery_id',(select id::text from public.camera_submissions limit 1),true);
 select set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
 set local role authenticated;
-do $$ declare denied boolean:=false;
+do $$ declare denied boolean:=false; affected integer;
 begin
   begin perform public.reorder_camera_submissions(array[]::uuid[]); exception when insufficient_privilege then denied:=true; end;
   if not denied then raise exception 'Non-admin reorder accepted'; end if;
   denied:=false;
   begin perform public.set_camera_submission_deleted('00000000-0000-0000-0000-000000000001',true); exception when insufficient_privilege then denied:=true; end;
   if not denied then raise exception 'Non-admin archive accepted'; end if;
+  update public.camera_submissions set title='must not save' where id=current_setting('test.scenery_id')::uuid;
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'Non-admin edit accepted'; end if;
   if exists(select 1 from public.camera_submissions) then raise exception 'Non-admin can read list'; end if;
 end $$;
 rollback;

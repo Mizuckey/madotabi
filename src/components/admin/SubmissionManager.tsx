@@ -22,6 +22,8 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   const [loading, setLoading] = useState(true);
   const [changing, setChanging] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; title: string; notes: string } | null>(null);
+  const [editError, setEditError] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [actionError, setActionError] = useState("");
   const [message, setMessage] = useState("");
@@ -94,6 +96,23 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
     finally { setChanging(false); }
   }
 
+  async function saveEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing || busy) return;
+    const title = editing.title.trim();
+    const notes = editing.notes.trim();
+    if (title.length > 100 || notes.length > 1000) { setEditError("タイトルは100文字、メモは1000文字以内で入力してください。"); return; }
+    setChanging(true); setEditError(""); setMessage("");
+    try {
+      const { data, error } = await supabase.from("camera_submissions").update({ title, notes }).eq("id", editing.id).eq("created_by", userId).select(fields).single<Submission>();
+      if (error || !data) throw new Error("Edit failed");
+      setItems(current => current.map(item => item.id === data.id ? data : item));
+      setEditing(null);
+      setMessage("タイトルとメモを保存しました。");
+    } catch { setEditError("保存結果を確認できませんでした。入力は残しています。再度保存するか、リストを更新して確認してください。"); }
+    finally { setChanging(false); }
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving || loading || changing) return;
@@ -137,7 +156,7 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
       </section>
       <section className="admin-library" aria-labelledby="library-title">
         <div className="admin-library-header"><div><span className="admin-step">02 / YOUR COLLECTION</span><h2 id="library-title">景色リスト <span className="admin-count">{loading ? "—" : active.length}</span></h2></div><button className="admin-secondary" type="button" onClick={reload} disabled={busy}>更新</button></div>
-        <div className="scenery-list-tabs"><button className="admin-secondary" type="button" aria-pressed={!showDeleted} disabled={busy} onClick={() => { setShowDeleted(false); setConfirmDelete(null); }}>再生する景色</button><button className="admin-secondary" type="button" aria-pressed={showDeleted} disabled={busy} onClick={() => { setShowDeleted(true); setConfirmDelete(null); }}>削除した景色 ({deleted.length})</button></div>
+        <div className="scenery-list-tabs"><button className="admin-secondary" type="button" aria-pressed={!showDeleted} disabled={busy} onClick={() => { setShowDeleted(false); setConfirmDelete(null); setEditing(null); }}>再生する景色</button><button className="admin-secondary" type="button" aria-pressed={showDeleted} disabled={busy} onClick={() => { setShowDeleted(true); setConfirmDelete(null); setEditing(null); }}>削除した景色 ({deleted.length})</button></div>
         {message && <p className="admin-notice" role="status">{message}</p>}
         {actionError && <p className="admin-error" role="alert">{actionError}</p>}
         {listError && <div className="admin-error" role="alert">{listError} <button className="admin-text-button" onClick={reload} disabled={loading}>再取得</button></div>}
@@ -147,13 +166,20 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
           <ul className="admin-items">{visible.map((item, index) => (
             <li key={item.id} className="admin-item"><div className="admin-item-top"><span className="admin-item-label">{showDeleted ? "削除済み" : `${index + 1} 番目`}</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.notes && <p className="admin-item-notes">{item.notes}</p>}
               <div className="admin-video-actions">
+                <button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing({ id: item.id, title: item.title, notes: item.notes }); setEditError(""); setConfirmDelete(null); }}>編集</button>
                 {showDeleted ? <button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, false)}>リストに戻す</button> : <>
                   <button className="admin-secondary" type="button" disabled={busy} onClick={() => onWatch(item.youtube_video_id)}>この景色を見る →</button>
                   <button className="admin-secondary" type="button" disabled={busy || index === 0} aria-label={`${item.title || "この景色"}を上へ`} onClick={() => reorder(index, -1)}>↑ 上へ</button>
                   <button className="admin-secondary" type="button" disabled={busy || index === active.length - 1} aria-label={`${item.title || "この景色"}を下へ`} onClick={() => reorder(index, 1)}>↓ 下へ</button>
-                  <button className="admin-text-button" type="button" disabled={busy} onClick={() => setConfirmDelete(item.id)}>削除</button>
+                  <button className="admin-text-button" type="button" disabled={busy} onClick={() => { setConfirmDelete(item.id); setEditing(null); }}>削除</button>
                 </>}
               </div>
+              {editing?.id === item.id && <form className="admin-form scenery-edit-form" onSubmit={saveEdit} aria-label="景色を編集">
+                <label htmlFor={`edit-title-${item.id}`}>タイトル</label><input id={`edit-title-${item.id}`} value={editing.title} maxLength={100} disabled={busy} onChange={e => setEditing({ ...editing, title: e.target.value })} />
+                <label htmlFor={`edit-notes-${item.id}`}>メモ</label><textarea id={`edit-notes-${item.id}`} value={editing.notes} rows={3} maxLength={1000} disabled={busy} onChange={e => setEditing({ ...editing, notes: e.target.value })} />
+                {editError && <p className="admin-error" role="alert">{editError}</p>}
+                <div className="admin-video-actions"><button className="admin-primary" type="submit" disabled={busy}>{changing ? "保存中…" : "変更を保存"}</button><button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing(null); setEditError(""); }}>キャンセル</button></div>
+              </form>}
               {confirmDelete === item.id && !showDeleted && <div className="scenery-delete-confirm" role="group" aria-label="景色の削除確認"><p>この景色を再生リストから削除しますか？ 後から戻せます。</p><button className="admin-secondary" type="button" disabled={busy} onClick={() => setConfirmDelete(null)}>残す</button><button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, true)}>削除する</button></div>}
             </li>
           ))}</ul>

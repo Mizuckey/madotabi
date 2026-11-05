@@ -18,20 +18,16 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggle
   const host = useRef<HTMLDivElement>(null);
   const initialControls = useRef(showControls);
   const player = useRef<YouTubePlayer | null>(null);
-  const [presentedId, setPresentedId] = useState(video.youtubeVideoId);
-  const transitioning = presentedId !== video.youtubeVideoId;
-  const desired = useRef({ video, onPlaybackChange, canPlay: !transitioning });
-  const prepareTransition = useRef<(() => void) | null>(null);
+  const desired = useRef({ video, onPlaybackChange });
   const load = useRef<(() => void) | null>(null);
   const [result, setResult] = useState<{ videoId: string; status: PlaybackStatus; error: string }>({ videoId: video.youtubeVideoId, status: "loading", error: "" });
   const status = result.videoId === video.youtubeVideoId ? result.status : "loading";
 
   useLayoutEffect(() => {
-    desired.current = { video, onPlaybackChange, canPlay: !transitioning };
-    if (transitioning) prepareTransition.current?.();
+    desired.current = { video, onPlaybackChange };
     const iframe = host.current?.querySelector("iframe");
     if (iframe) iframe.title = `${video.title}（YouTubeプレーヤー）`;
-  }, [video, onPlaybackChange, transitioning]);
+  }, [video, onPlaybackChange]);
 
   useEffect(() => {
     const container = host.current;
@@ -44,7 +40,6 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggle
     const report = (state: PlaybackStatus, error = "") => {
       if (cancelled) return;
       const id = desired.current.video.youtubeVideoId;
-      if (state === "error") setPresentedId(id);
       setResult({ videoId: id, status: state, error });
       desired.current.onPlaybackChange?.(id, state);
     };
@@ -52,13 +47,8 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggle
       clearTimeout(startupTimer);
       startupTimer = setTimeout(() => report("error", "再生が始まりませんでした。再試行するか、別の景色を選んでください。"), 20000);
     };
-    prepareTransition.current = () => {
-      clearTimeout(startupTimer);
-      if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
-      if (ready) player.current?.pauseVideo();
-    };
     load.current = () => {
-      if (!ready || !player.current || cancelled || !desired.current.canPlay) return;
+      if (!ready || !player.current || cancelled) return;
       const id = desired.current.video.youtubeVideoId;
       if (requested === id && player.current.getVideoData().video_id === id) {
         watchStartup();
@@ -67,7 +57,7 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggle
       }
       if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
       animationFrame = requestAnimationFrame(() => {
-        if (cancelled || !desired.current.canPlay || desired.current.video.youtubeVideoId !== id) return;
+        if (cancelled || desired.current.video.youtubeVideoId !== id) return;
         requested = id;
         watchStartup();
         player.current?.loadVideoById(id);
@@ -121,7 +111,6 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggle
       cancelled = true;
       clearTimeout(startupTimer);
       load.current = null;
-      prepareTransition.current = null;
       if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
       player.current?.destroy();
       player.current = null;
@@ -129,18 +118,12 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggle
     };
   }, []);
 
-  useEffect(() => {
-    if (!transitioning) { load.current?.(); return; }
-    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 700;
-    const timer = setTimeout(() => setPresentedId(video.youtubeVideoId), duration);
-    return () => clearTimeout(timer);
-  }, [video.youtubeVideoId, transitioning]);
+  useEffect(() => { load.current?.(); }, [video.youtubeVideoId]);
 
   return (
     <div className={`camera-player${compact ? " compact-player" : ""}`}>
       <section className="player player-live" aria-label={`${video.title}のプレーヤー領域`} data-playback-status={status}>
-        <div className="youtube-host" ref={host} hidden={transitioning} />
-        {transitioning && <div className="scene-title-card" key={video.youtubeVideoId} role="status"><span>NEXT SCENERY</span><h2>{video.title}</h2></div>}
+        <div className="youtube-host" ref={host} />
       </section>
       <div className="player-caption"><span role="status"><span className="status-dot" /> {labels[status]}</span><a href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`} target="_blank" rel="noopener noreferrer">YouTubeで開く ↗</a></div>
       {status === "error" && <div className="player-error" role="alert"><h2>この動画を再生できません</h2><p>{result.error}</p><div><button type="button" onClick={onRetry}>再試行</button><a href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`} target="_blank" rel="noopener noreferrer">YouTubeで開く ↗</a></div></div>}

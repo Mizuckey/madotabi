@@ -9,7 +9,6 @@ export function useCameraRotation(count: number, initialIndex = 0) {
   const [selection, setSelection] = useState({ index: initialIndex });
   const [automatic, setAutomatic] = useState(true);
   const [intervalSeconds, setIntervalSeconds] = useState<number>(DEFAULT_ROTATION_SECONDS);
-  const [remainingMs, setRemainingMs] = useState<number>(DEFAULT_ROTATION_SECONDS * 1000);
   const remainingRef = useRef(DEFAULT_ROTATION_SECONDS * 1000);
   const timerRef = useRef<RotationTimer | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>("loading");
@@ -20,12 +19,10 @@ export function useCameraRotation(count: number, initialIndex = 0) {
     if (!counting) return;
     const timer = startRotationTimer({
       delayMs: remainingRef.current,
-      onRemaining: setRemainingMs,
       onAdvance: () => {
         timerRef.current = null;
         setPlaybackStatus("loading");
         remainingRef.current = intervalSeconds * 1000;
-        setRemainingMs(intervalSeconds * 1000);
         setSelection(current => ({ index: nextVideoIndex(current.index, count) }));
       },
     });
@@ -43,7 +40,6 @@ export function useCameraRotation(count: number, initialIndex = 0) {
     timerRef.current?.cancel();
     timerRef.current = null;
     remainingRef.current = durationMs;
-    setRemainingMs(durationMs);
   }, []);
 
   const onPlaybackChange = useCallback((status: PlaybackStatus) => {
@@ -80,5 +76,5 @@ export function useCameraRotation(count: number, initialIndex = 0) {
     setAutomatic(!automatic);
   }
 
-  return { index: selection.index, automatic: enabled, counting, playbackStatus, onPlaybackChange, intervalSeconds, remainingSeconds: Math.ceil(remainingMs / 1000), select, move, changeInterval, toggleAutomatic };
+  return { index: selection.index, automatic: enabled, counting, playbackStatus, onPlaybackChange, intervalSeconds, select, move, changeInterval, toggleAutomatic };
 }
