@@ -9,5 +9,5 @@ export const metadata: Metadata = { title: "動画を視聴 | 窓旅", robots: {
 export default async function WatchPage({ params }: { params: Promise<{ videoId: string }> }) {
   const { videoId } = await params;
   if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) notFound();
-  return <div className="app-shell"><Header /><main><div className="page-heading"><div><p className="eyebrow">YOUTUBE VIEW</p><h1>動画を視聴</h1></div><span className="outline-label">URL指定 / 公開一覧への追加は行いません</span></div><WatchScreen videos={[{ id: videoId, title: "YouTube動画", youtubeVideoId: videoId }]} singleVideo /></main><footer className="app-footer"><span>窓旅</span><p>日々のそばに、日本の景色。</p></footer></div>;
+  return <div className="app-shell"><Header /><main><div className="page-heading"><div><p className="eyebrow">YOUTUBE VIEW</p><h1>動画を視聴</h1></div><span className="outline-label">YouTube / URLから視聴</span></div><WatchScreen videos={[{ id: videoId, title: "YouTube動画", youtubeVideoId: videoId }]} singleVideo /></main><footer className="app-footer"><span>窓旅</span><p>日々のそばに、日本の景色。</p></footer></div>;
 }

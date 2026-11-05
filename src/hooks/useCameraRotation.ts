@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { DEFAULT_ROTATION_SECONDS, ROTATION_INTERVALS, nextVideoIndex, startRotationTimer, type RotationTimer } from "@/lib/rotation";
 
 /** 親は動画一覧の変更時にkeyを変え、選択位置を新しい一覧へリセットする。 */
-export function useCameraRotation(count: number) {
-  const [selection, setSelection] = useState({ index: 0 });
+export function useCameraRotation(count: number, initialIndex = 0) {
+  const [selection, setSelection] = useState({ index: initialIndex });
   const [automatic, setAutomatic] = useState(true);
   const [intervalSeconds, setIntervalSeconds] = useState<number>(DEFAULT_ROTATION_SECONDS);
   const [remainingMs, setRemainingMs] = useState<number>(DEFAULT_ROTATION_SECONDS * 1000);

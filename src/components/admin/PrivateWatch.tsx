@@ -8,7 +8,7 @@ import { WatchScreen } from "@/components/player/WatchScreen";
 type Row = { id: string; title: string; youtube_video_id: string };
 
 /** AdminConsoleの権限確認後にだけマウント。RLS付きの候補一覧を本人のセッションで読む。 */
-export function PrivateWatch({ supabase }: { supabase: SupabaseClient }) {
+export function PrivateWatch({ supabase, initialVideoId }: { supabase: SupabaseClient; initialVideoId?: string }) {
   const [result, setResult] = useState<{ videos: CameraVideo[]; error: boolean } | null>(null);
 
   useEffect(() => {
@@ -29,5 +29,5 @@ export function PrivateWatch({ supabase }: { supabase: SupabaseClient }) {
   }, [supabase]);
 
   if (!result) return <section className="admin-card" role="status">登録動画を読み込んでいます…</section>;
-  return <><p className="private-watch-note">管理者専用：未公開の登録候補も含みます。この視聴で動画が公開されることはありません。</p><WatchScreen videos={result.videos} loadError={result.error} privateCollection /></>;
+  return <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId} />;
 }

@@ -9,24 +9,24 @@ import { WeatherInfo } from "@/components/weather/WeatherInfo";
 import { useCameraRotation } from "@/hooks/useCameraRotation";
 import { ROTATION_INTERVALS } from "@/lib/rotation";
 
-type Props = { videos: CameraVideo[]; loadError?: boolean; singleVideo?: boolean; privateCollection?: boolean };
+type Props = { videos: CameraVideo[]; loadError?: boolean; singleVideo?: boolean; initialVideoId?: string };
 
-export function WatchScreen({ videos, loadError = false, singleVideo = false, privateCollection = false }: Props) {
+export function WatchScreen({ videos, loadError = false, singleVideo = false, initialVideoId }: Props) {
   if (!videos.length) return (
     <section className="catalog-empty">
-      <p className="eyebrow">CAMERA VIEW</p><h2>{loadError ? "動画の一覧を取得できませんでした" : privateCollection ? "登録されている動画はまだありません" : "公開されている動画はまだありません"}</h2>
-      <p>{loadError ? "通信状況を確認して、もう一度お試しください。" : privateCollection ? "管理画面で動画URLを追加すると、ここで連続視聴できます。" : "トップに公開した動画を連続視聴できます。公開せずに見る場合は、管理者専用の連続視聴をご利用ください。"}</p>
-      <div>{loadError && <button type="button" onClick={() => window.location.reload()}>再読み込み</button>}{!privateCollection && <Link href="/admin/watch">登録動画を連続視聴 →</Link>}<Link href="/admin">管理画面へ →</Link></div>
+      <p className="eyebrow">CAMERA VIEW</p><h2>{loadError ? "動画の一覧を取得できませんでした" : "登録されている動画はまだありません"}</h2>
+      <p>{loadError ? "通信状況を確認して、もう一度お試しください。" : "「URLを追加」で動画を保存すると、ここで連続視聴できます。"}</p>
+      <div>{loadError && <button type="button" onClick={() => window.location.reload()}>再読み込み</button>}<Link href="/?view=add">URLを追加する →</Link></div>
     </section>
   );
 
-  return <PlaylistScreen key={JSON.stringify(videos.map(video => video.id))} videos={videos} singleVideo={singleVideo} privateCollection={privateCollection} />;
+  return <PlaylistScreen key={JSON.stringify(videos.map(video => video.id))} videos={videos} singleVideo={singleVideo} initialVideoId={initialVideoId} />;
 }
 
-function PlaylistScreen({ videos, singleVideo, privateCollection }: Required<Pick<Props, "videos" | "singleVideo" | "privateCollection">>) {
-  const rotation = useCameraRotation(videos.length);
+function PlaylistScreen({ videos, singleVideo, initialVideoId }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId">) {
+  const rotation = useCameraRotation(videos.length, Math.max(0, videos.findIndex(video => video.youtubeVideoId === initialVideoId)));
   const video = videos[rotation.index];
-  const collectionName = privateCollection ? "登録動画" : "公開カメラ";
+  const collectionName = "登録動画";
 
   return (
     <div className="view-layout" data-selected-video={video.youtubeVideoId}>
@@ -35,7 +35,7 @@ function PlaylistScreen({ videos, singleVideo, privateCollection }: Required<Pic
         <section className="playback-controls active-controls" aria-labelledby="controls-title">
           <div className="control-description"><h2 id="controls-title">{singleVideo ? "動画単体の視聴" : "カメラを選ぶ"}</h2><p>{singleVideo ? "このURLから動画を確認できます" : `${rotation.index + 1} / ${videos.length} 件`}</p></div>
           {!singleVideo && <><div className="transport"><button type="button" className="watch-control" onClick={() => rotation.move(-1)} disabled={videos.length < 2} aria-label="前のカメラ">← 前へ</button><button type="button" className="watch-control" onClick={() => rotation.move(1)} disabled={videos.length < 2} aria-label="次のカメラ">次へ →</button></div><label className="video-select-label" htmlFor="video-select"><span className="sr-only">視聴するカメラ</span><select id="video-select" value={video.id} onChange={e => rotation.select(videos.findIndex(item => item.id === e.target.value))}>{videos.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label></>}
-          {singleVideo && <div className="single-video-links"><Link className="watch-home-link" href="/admin/watch">登録動画を連続視聴 →</Link><Link className="watch-home-link" href="/">公開カメラ一覧へ →</Link></div>}
+          {singleVideo && <div className="single-video-links"><Link className="watch-home-link" href="/">登録動画を連続視聴 →</Link></div>}
         </section>
         {!singleVideo && <section className="rotation-controls" aria-label="自動切替設定" data-rotation-active={rotation.automatic}>
           <div className="rotation-status"><span className={`rotation-indicator${rotation.automatic ? " is-active" : ""}`} /><div><h2>{videos.length < 2 ? "動画が2件以上で自動切替できます" : rotation.automatic ? "自動で景色を切り替えています" : "自動切替を一時停止中"}</h2><p aria-live="off">{videos.length < 2 ? "今の動画をそのまま再生します" : rotation.automatic ? <>次の景色まで <span className="rotation-countdown">{rotation.remainingSeconds}</span> 秒</> : `再開まで残り ${rotation.remainingSeconds} 秒を保持`}</p></div></div>
