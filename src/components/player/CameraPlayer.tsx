@@ -9,12 +9,14 @@ type Props = { video: CameraVideo; onPlaybackChange?(videoId: string, status: Pl
 
 export function CameraPlayer({ video, onPlaybackChange }: Props) {
   const [attempt, setAttempt] = useState(0);
-  // 動画IDでkeyを変えず、再試行時だけプレーヤー自体を作り直す。
-  return <YouTubeEmbed key={attempt} video={video} onPlaybackChange={onPlaybackChange} onRetry={() => { onPlaybackChange?.(video.youtubeVideoId, "loading"); setAttempt(value => value + 1); }} />;
+  const [showControls, setShowControls] = useState(false);
+  // 動画IDでkeyを変えず、再試行・操作バー設定の変更時だけプレーヤー自体を作り直す。
+  return <YouTubeEmbed key={`${attempt}:${showControls}`} showControls={showControls} onToggleControls={() => { onPlaybackChange?.(video.youtubeVideoId, "loading"); setShowControls(value => !value); }} video={video} onPlaybackChange={onPlaybackChange} onRetry={() => { onPlaybackChange?.(video.youtubeVideoId, "loading"); setAttempt(value => value + 1); }} />;
 }
 
-function YouTubeEmbed({ video, onPlaybackChange, onRetry }: Props & { onRetry(): void }) {
+function YouTubeEmbed({ video, onPlaybackChange, onRetry, showControls, onToggleControls }: Props & { onRetry(): void; showControls: boolean; onToggleControls(): void }) {
   const host = useRef<HTMLDivElement>(null);
+  const initialControls = useRef(showControls);
   const player = useRef<YouTubePlayer | null>(null);
   const desired = useRef({ video, onPlaybackChange });
   const load = useRef<(() => void) | null>(null);
@@ -57,7 +59,7 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry }: Props & { onRetry():
     iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
-    iframe.src = buildYouTubeEmbedUrl(desired.current.video.youtubeVideoId, window.location.origin);
+    iframe.src = buildYouTubeEmbedUrl(desired.current.video.youtubeVideoId, window.location.origin, initialControls.current);
     container.replaceChildren(iframe);
 
     void loadYouTubeAPI().then(api => {
@@ -115,7 +117,8 @@ function YouTubeEmbed({ video, onPlaybackChange, onRetry }: Props & { onRetry():
       </section>
       <div className="player-caption"><span role="status"><span className="status-dot" /> {labels[status]}</span><a href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`} target="_blank" rel="noopener noreferrer">YouTubeで開く ↗</a></div>
       {status === "error" && <div className="player-error" role="alert"><h2>この動画を再生できません</h2><p>{result.error}</p><div><button type="button" onClick={onRetry}>再試行</button><a href={`https://www.youtube.com/watch?v=${video.youtubeVideoId}`} target="_blank" rel="noopener noreferrer">YouTubeで開く ↗</a></div></div>}
-      {status === "blocked" ? <p className="playback-note">自動再生が制限されています。<button type="button" onClick={() => player.current?.playVideo()}>再生する</button>、または映像内の再生ボタンを押してください。</p> : <p className="playback-note">最初はミュートで再生します。音声・全画面表示は映像内の操作から変更できます。</p>}
+      <div className="player-display-controls"><button type="button" aria-pressed={showControls} onClick={onToggleControls}>{showControls ? "操作バーを非表示" : "操作バーを表示"}</button><span>表示を切り替えると、動画をミュートで読み込み直します。</span></div>
+      {status === "blocked" ? <p className="playback-note">自動再生が制限されています。<button type="button" onClick={() => player.current?.playVideo()}>再生する</button>、または映像内の再生ボタンを押してください。</p> : <p className="playback-note">最初はミュートで再生します。「操作バーを表示」で音声・画質・全画面を操作できます。</p>}
     </div>
   );
 }

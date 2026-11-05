@@ -59,12 +59,12 @@ export function loadYouTubeAPI(): Promise<YouTubeAPI> {
   return pending;
 }
 
-export function buildYouTubeEmbedUrl(videoId: string, origin: string): string {
+export function buildYouTubeEmbedUrl(videoId: string, origin: string, showControls = false): string {
   if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) throw new Error("Invalid video ID");
   const site = new URL(origin);
   if (!["https:", "http:"].includes(site.protocol) || site.origin !== origin) throw new Error("Invalid origin");
   const url = new URL(`https://www.youtube-nocookie.com/embed/${videoId}`);
-  url.search = new URLSearchParams({ enablejsapi: "1", origin, autoplay: "0", controls: "1", playsinline: "1", rel: "0" }).toString();
+  url.search = new URLSearchParams({ enablejsapi: "1", origin, autoplay: "0", controls: showControls ? "1" : "0", playsinline: "1", rel: "0" }).toString();
   return url.toString();
 }
 

@@ -127,3 +127,6 @@ h1 { font-size: 22px; font-weight: 400; letter-spacing: 2px; margin: 0; }
 .rotation-actions select:focus-visible { outline: 2px solid #b7d7c1; outline-offset: 4px; }
 .single-video-links { display: flex; gap: 24px; flex-wrap: wrap; }
 @media (max-width: 700px) { .rotation-controls { padding: 18px; gap: 18px; } .rotation-actions { width: 100%; align-items: end; } .rotation-actions label { flex: 1; } .rotation-actions select { font-size: 16px; width: 100%; } .rotation-actions .watch-control { flex: 1; } .single-video-links { gap: 12px; } }
+.player-display-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-top: 8px; }
+.player-display-controls button { min-height: 44px; border: 1px solid #465d4e; border-radius: 5px; background: #1b2b20; color: #bcd0c2; font: inherit; font-size: 11px; padding: 8px 12px; cursor: pointer; }
+.player-display-controls span { color: #8fa496; font-size: 10px; line-height: 1.8; }

@@ -9,7 +9,7 @@ test('再生元を明示したプライバシー強化モードの埋め込みUR
  assert.equal(url.searchParams.get('origin'),'https://madotabi.vercel.app');
  assert.equal(url.searchParams.get('enablejsapi'),'1');
  assert.equal(url.searchParams.get('autoplay'),'0'); // ミュートしてからAPIで再生する
- assert.equal(url.searchParams.get('controls'),'1');
+ assert.equal(url.searchParams.get('controls'),'0');
  assert.equal(url.searchParams.get('playsinline'),'1');
 });
 test('不正ID・不正な再生元は拒否',()=>{
@@ -22,4 +22,9 @@ test('埋め込み禁止・非公開・再生元エラーは異なる案内',()=
  assert.equal(youtubePlayerError(101),youtubePlayerError(150));
  assert.match(youtubePlayerError(153),/再生元/);
  assert.match(youtubePlayerError(999),/再生できません/);
+});
+
+test('必要なときに公式の操作バーを表示できる',()=>{
+ const url=new URL(buildYouTubeEmbedUrl('abCDE12_-xy','https://madotabi.vercel.app',true));
+ assert.equal(url.searchParams.get('controls'),'1');
 });

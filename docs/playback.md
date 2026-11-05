@@ -12,7 +12,7 @@ YouTube公式IFrame Player APIをスクリプトで読み込みます。APIキ�
 
 - プライバシー強化モードの`youtube-nocookie.com`を使用。
 - ミュートしてから再生開始。ブラウザが自動再生を止めた場合は、再生操作を案内。
-- 音声・再生/一時停止・全画面表示はYouTube標準コントロールで操作。
+- 通常は公式 `controls=0` で操作バーを非表示。「操作バーを表示」でYouTube標準の音声・画質・全画面操作を利用。表示設定を変更すると同じ動画をミュートで読み込み直す。タイトルやYouTubeロゴの完全非表示は保証しない（`showinfo` / `modestbranding` は廃止済み）。
 - 動画変更時は同じプレーヤーの `loadVideoById` を利用。画面離脱・再試行時に破棄。
 - 動画削除・非公開・埋め込み禁止・再生元識別エラーを区別して案内し、再試行とYouTubeへのリンクを表示。
 - `origin`と`strict-origin-when-cross-origin`を設定して再生元を識別。
