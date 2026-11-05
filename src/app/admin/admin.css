@@ -204,3 +204,24 @@
   .personal-shell .personal-main { overflow-y: auto; }
   .personal-stage:not(.is-library) { flex-shrink: 0; min-height: 380px; }
 }
+
+.channel-manager { margin-bottom: 18px; }
+.channel-manager > summary { cursor: pointer; font-size: 14px; min-height: 44px; padding: 10px 0; }
+.channel-manager > .admin-field-hint { margin: 8px 0; }
+.channel-add-form { margin: 16px 0; }
+.channel-add-form > button { align-self: start; }
+.channel-list { list-style: none; padding: 0; margin: 12px 0; }
+.channel-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid var(--border); padding: 8px 0; }
+.channel-list li > div { min-width: 0; }
+.channel-list a { color: #b9cec1; text-underline-offset: 4px; font-size: 12px; overflow-wrap: anywhere; }
+.channel-list button { flex-shrink: 0; }
+.live-notifications { flex-shrink: 0; max-height: 124px; overflow-y: auto; border-bottom: 1px solid var(--border); }
+.live-notification { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.live-notification p { flex: 1; min-width: 0; margin: 0; color: #a2bdac; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-notification p .status-dot { margin-right: 6px; }
+.live-notification strong { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 400; color: #d2e1d7; line-height: 1.8; }
+.live-notification button { flex-shrink: 0; padding: 8px; }
+.channel-monitor-error { flex-shrink: 0; margin: 0; color: #cbb398; font-size: 10px; max-height: 70px; overflow: auto; }
+.live-view-heading { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
+.personal-shell .live-view-heading + .watch-screen .watch-toolbar { display: none; }
+@media (max-width: 600px) { .live-notifications { max-height: 72px; } .live-view-heading { gap: 4px; } .live-view-heading button { padding: 8px; } }

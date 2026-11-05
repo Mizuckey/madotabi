@@ -1,0 +1,50 @@
+# チャンネルのライブ通知
+
+景色リストの「ライブを待つチャンネル」で、YouTubeチャンネルURLを登録します。APIキー未設定でもURLを保存できます。
+
+## 使い方
+
+1. `https://www.youtube.com/@ハンドル`、`/channel/UC…`、旧`/user/…`を登録します。`/streams`などのタブ付きも対応。`/c/…`はハンドルURLに置き換えてください。
+2. 窓旅を開いた時・表示タブへ戻った時・表示中の定期確認でライブを調べます。非表示タブ・ログアウト後・閉じた後は新たな確認を開始しません。開始済みのサーバー処理が完了することはあります。
+3. 視聴画面の通知で「ライブを見る」を押すと、配信状態を再確認して切り替えます。
+4. 通知から開いた配信は固定表示し、自動切替しません。「景色の連続再生に戻る」で元のリストへ戻れます。景色リストへ動画を自動追加することはありません。
+
+画面内だけの通知で、登録時点ですでに配信中のライブも対象です。閉じた通知は同じワークスペースを開いている間は再表示しません。「確認を停止」にしたチャンネルは後から再開できます。
+
+## 頻度とAPI
+
+- 最大5チャンネル、チャンネルごとに最短30分間隔。毎分のタイマーは表示状態と経過時間だけを確認し、30分未満はサーバーへリクエストしません（明示更新を除く）。
+- 明示更新・再読み込み・別端末でも、DBの原子的なclaimで30分間隔を共有します。停止→再開で間隔はリセットしません。失敗時も即座に再試行しません。
+- `channels.list`でIDを解決し、`search.list`の`channelId`と`eventType=live`で検索します。候補は`videos.list`で開始済み・未終了・公開・埋め込み可・チャンネル一致を確認します。
+- 検索結果の先頭5配信まで。YouTubeの反映遅延、API上限、年齢・地域制限などで検出・再生できない場合があります。即時通知や全配信の検出は保証しません。
+- 2026-11時点の公式仕様では`search.list`の標準上限は1日100回。5チャンネルを約8時間開くとおおむね80回です。長時間の利用で上限に達したら確認失敗を表示します。正確な上限はGoogle CloudのQuotasで確認してください。
+
+Cron・Webhook・常時実行サーバー・ブラウザ通知権限・追加SDKは使いません。
+
+## APIキーの設定
+
+1. [Google CloudでYouTube Data API v3](https://console.cloud.google.com/apis/library/youtube.googleapis.com)を開き、プロジェクトを作成または選択して有効にします。
+2. [認証情報](https://console.cloud.google.com/apis/credentials)でAPIキーを作成します。公開配信の照会なので、YouTubeのOAuthログインは不要です。
+3. APIの制限は **YouTube Data API v3だけ** にします。Vercelサーバーから使うのでWebサイトのHTTPリファラー制限は使いません。固定IP制限には送信元が固定される環境が必要です。
+4. Vercelのmadotabiプロジェクトで、サーバー専用の`YOUTUBE_DATA_API_KEY`をProductionの環境変数へ追加します。`NEXT_PUBLIC_`は付けません。キーをチャットやGitに貼らないでください。
+5. 反映には本番の再デプロイが必要です。ローカルでは同名の値を`.env.local`へ置いてサーバーを再起動します。
+6. 景色リストで登録し「確認状況を更新」。ライブ中なら視聴画面へ通知が出ます。「API設定待ち」のままなら対象環境と再デプロイを確認します。
+
+## 権限と保存
+
+`channel_watches`は認証済み・許可済み・本人の行だけを読み書きできます。キャッシュへの直接UPDATEや匿名RPCは許可しません。APIも毎回`getUser`と管理者RPCを確認し、本人のBearerトークンでDBへアクセスします。service-roleキーは不要です。限定的なキャッシュ書込み関数は`app_private`に置き、本人・管理者・確認トークン・期限を検証します。
+
+外部接続先は固定のGoogle APIだけです。登録URLをそのまま取得したりYouTubeページをスクレイピングしたりしません。APIキーはヘッダーで送り、ログ・URL・クライアントへ含めません。
+
+## 検証
+
+Node標準テストでURL、ライブ状態、期限切れ・重複・閉じた通知、APIの接続先とフィルター、上流失敗、非表示タブと離脱後のスケジューラー停止を確認します。`tests/channel-watches.sql`は初回の空コレクションに対し、5件制限・claim共有・停止/再開・トークン・権限・匿名拒否を検証し、すべてロールバックします。
+
+ローカル本番ビルドのAPIで未認証401・別オリジン403・未対応GET405を確認しました。APIキー未設定のため本物の検出→通知→切替の通し確認は未実施です。ブラウザ操作も設定で無効のため画面操作確認は未実施です。
+
+## 公式資料
+
+- [認証情報とAPIキー](https://developers.google.com/youtube/registering_an_application)
+- [チャンネル取得](https://developers.google.com/youtube/data/reference/rest/v3/channels/list)
+- [ライブ検索と上限](https://developers.google.com/youtube/data/reference/rest/v3/search/list)
+- [動画メタデータ](https://developers.google.com/youtube/data/reference/rest/v3/videos/list)
