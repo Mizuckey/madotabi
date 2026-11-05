@@ -1,6 +1,10 @@
+export type PlaybackStatus = "loading" | "ready" | "playing" | "paused" | "buffering" | "ended" | "blocked" | "error";
+
 export interface YouTubePlayer {
   mute(): void;
   playVideo(): void;
+  loadVideoById(videoId: string): void;
+  getVideoData(): { video_id?: string };
   destroy(): void;
 }
 type PlayerEvent = { target: YouTubePlayer };
