@@ -1,5 +1,5 @@
 export const ROTATION_INTERVALS = [10, 20, 30, 40, 50, 60] as const;
-export const DEFAULT_ROTATION_SECONDS = 60;
+export const DEFAULT_ROTATION_SECONDS = 20;
 
 export function nextVideoIndex(index: number, count: number, direction: 1 | -1 = 1): number {
   if (count <= 0) return 0;
