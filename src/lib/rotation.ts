@@ -1,4 +1,4 @@
-export const ROTATION_INTERVALS = [30, 60, 180, 300] as const;
+export const ROTATION_INTERVALS = Array.from({ length: 60 }, (_, index) => index + 1);
 export const DEFAULT_ROTATION_SECONDS = 60;
 
 export function nextVideoIndex(index: number, count: number, direction: 1 | -1 = 1): number {
