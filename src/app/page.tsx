@@ -1,40 +1,38 @@
 import { Header } from "@/components/layout/Header";
-import { CameraPlayer } from "@/components/player/CameraPlayer";
-import { CameraInfo } from "@/components/camera/CameraInfo";
-import { CameraMap } from "@/components/map/CameraMap";
-import { WeatherInfo } from "@/components/weather/WeatherInfo";
-import { cameras } from "@/data/cameras";
+import { WatchScreen } from "@/components/player/WatchScreen";
+import type { CameraVideo } from "@/types/video";
 
-export default function Home() {
-  const camera = cameras[0];
+export const dynamic = "force-dynamic";
 
+async function loadVideos(): Promise<{ videos: CameraVideo[]; loadError: boolean }> {
+  try {
+    const base = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!base || !key) throw new Error("Missing configuration");
+    const url = new URL("/rest/v1/camera_videos", base);
+    url.search = new URLSearchParams({ select: "id,title,youtube_video_id", order: "published_at.desc,id.asc", limit: "100" }).toString();
+    const response = await fetch(url, { headers: { apikey: key }, cache: "no-store", signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error("Catalog request failed");
+    const rows: unknown = await response.json();
+    if (!Array.isArray(rows)) throw new Error("Invalid catalog response");
+    const videos = rows.map((row): CameraVideo => {
+      if (typeof row.id !== "string" || typeof row.title !== "string" || typeof row.youtube_video_id !== "string" || !/^[A-Za-z0-9_-]{11}$/.test(row.youtube_video_id)) throw new Error("Invalid video record");
+      return { id: row.id, title: row.title, youtubeVideoId: row.youtube_video_id };
+    });
+    return { videos, loadError: false };
+  } catch { return { videos: [], loadError: true }; }
+}
+
+export default async function Home() {
+  const { videos, loadError } = await loadVideos();
   return (
     <div className="app-shell">
       <Header />
       <main>
-        <div className="page-heading"><div><p className="eyebrow">A WINDOW TO JAPAN</p><h1>いつもの時間に、ちがう景色を。</h1></div><span className="outline-label">画面プレビュー / 外部サービス未接続</span></div>
-        <div className="view-layout">
-          <div className="view-main">
-            {camera ? <CameraPlayer camera={camera} /> : <section className="player empty-player"><h2>カメラが登録されていません</h2></section>}
-            <section className="playback-controls" aria-labelledby="controls-title">
-              <div className="control-description"><h2 id="controls-title">再生コントロール</h2><p>各地の景色を、ゆっくりと。</p></div>
-              <div className="transport" aria-label="再生切替（すべて未実装）">
-                <button disabled className="transport-button" aria-label="前のカメラ（未実装）">|◀</button>
-                <button disabled className="play-button" aria-label="自動切替の再開（未実装）">▶</button>
-                <button disabled className="transport-button" aria-label="次のカメラ（未実装）">▶|</button>
-              </div>
-              <div className="control-options"><button disabled className="option-button">全国ランダム</button><button disabled className="option-button">切替間隔 —</button></div>
-            </section>
-            <p className="development-note"><span className="status-dot" />開発用プレビュー：再生・切替操作は今後実装予定です。</p>
-          </div>
-          <aside className="side-panel" aria-label="カメラ詳細">
-            {camera ? <><CameraInfo camera={camera} /><CameraMap camera={camera} /></> : <p className="panel-section">地点情報はありません。</p>}
-            <WeatherInfo />
-            <div className="panel-footer">風景を眺める、余白の時間。</div>
-          </aside>
-        </div>
+        <div className="page-heading"><div><p className="eyebrow">A WINDOW TO JAPAN</p><h1>いつもの時間に、ちがう景色を。</h1></div><span className="outline-label">{loadError ? "一覧の取得に失敗しました" : `公開カメラ ${videos.length} 件 / YouTube`}</span></div>
+        <WatchScreen videos={videos} loadError={loadError} />
       </main>
-      <footer className="app-footer"><span>SORAMIRU</span><p>日本のどこかと、つながる窓。</p><span>MVP / 0.1</span></footer>
+      <footer className="app-footer"><span>SORAMIRU</span><p>日本のどこかと、つながる窓。</p><span>MVP / 0.2</span></footer>
     </div>
   );
 }

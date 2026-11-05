@@ -78,3 +78,34 @@ h1 { font-size: 22px; font-weight: 400; letter-spacing: 2px; margin: 0; }
 .admin-nav-link { color: #b5c9bc; text-decoration: none; font-size: 11px; padding: 10px; border: 1px solid #3a4d40; border-radius: 5px; }
 .admin-nav-link:hover { background: #223028; }
 @media (max-width: 480px) { .app-header { gap: 12px; } .admin-nav-link { padding: 10px 7px; } }
+
+/* YouTube viewing */
+.player-live { background: #080b09; min-height: 200px; }
+.player-live::before, .player-live::after { display: none; }
+.youtube-host, .youtube-host iframe { width: 100%; height: 100%; position: absolute; inset: 0; border: 0; }
+.player-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; background: #121a16; color: #b7cbbf; font-size: 12px; padding: 20px; text-align: center; }
+.player-error { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; background: #121a16f5; padding: 24px; text-align: center; }
+.player-error h2 { font-weight: 400; font-size: 17px; margin: 0 0 12px; }
+.player-error p { color: #b3c4b9; line-height: 1.9; font-size: 12px; max-width: 520px; margin: 0 0 16px; }
+.player-error > div { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.player-error a, .player-error button, .watch-control, .catalog-empty button, .catalog-empty a { border: 1px solid #516459; padding: 11px 15px; min-height: 44px; border-radius: 5px; color: #cedfd3; background: #25342b; cursor: pointer; text-decoration: none; font-size: 12px; }
+.player-caption { display: flex; justify-content: space-between; gap: 16px; color: #afc5b7; align-items: center; margin-top: 13px; font-size: 11px; }
+.player-caption a { color: #b6cebd; padding: 6px 0; text-underline-offset: 4px; }
+.playback-note { color: #9bad9f; font-size: 10px; line-height: 1.9; margin: 8px 0 0; }
+.playback-note button { background: #2a3d30; border: 1px solid #5d7866; border-radius: 4px; color: #d8e7dc; min-height: 44px; padding: 8px 14px; cursor: pointer; margin: 0 7px; }
+.watch-control:hover:not(:disabled), .player-error button:hover, .player-error a:hover { background: #3a4e40; }
+.watch-control:disabled { color: #809186; opacity: .6; cursor: not-allowed; }
+.active-controls { flex-wrap: wrap; }
+.video-select-label { min-width: 0; max-width: 100%; flex: 1 1 210px; }
+.video-select-label select { width: 100%; min-width: 0; border: 1px solid #4b6051; background: #152019; color: #d0e0d4; border-radius: 5px; font-size: 12px; min-height: 44px; padding: 9px 12px; }
+.watch-home-link { color: #b9d2c1; text-underline-offset: 4px; padding: 12px 0; }
+.video-id { font-size: 10px; color: #91a799; letter-spacing: .5px; margin: 18px 0 0; overflow-wrap: anywhere; }
+.camera-selector { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; max-height: 350px; overflow-y: auto; }
+.camera-selector button { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: space-between; text-align: left; gap: 12px; background: #1a251e; border: 1px solid #354c3d; color: #b8cebf; border-radius: 5px; font-size: 11px; line-height: 1.8; padding: 10px 12px; cursor: pointer; overflow-wrap: anywhere; }
+.camera-selector button[aria-pressed="true"] { border-color: #8cae96; background: #2d4234; color: #e0eee4; }
+.catalog-empty { border: 1px solid #394c40; border-radius: 10px; padding: 70px 30px; background: #162019; text-align: center; }
+.catalog-empty h2 { font-size: 21px; font-weight: 400; line-height: 1.8; margin: 15px 0; }
+.catalog-empty > p:not(.eyebrow) { color: #acbeb2; line-height: 2; font-size: 12px; }
+.catalog-empty > div { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 25px; }
+.camera-player button:focus-visible, .watch-control:focus-visible, .camera-selector button:focus-visible, .video-select-label select:focus-visible { outline: 2px solid #b8d5c0; outline-offset: 4px; }
+@media (max-width: 480px) { .player-error { padding: 16px; } .player-error h2 { font-size: 14px; margin-bottom: 7px; } .player-error p { font-size: 10px; line-height: 1.7; margin-bottom: 8px; } .player-error a, .player-error button { padding: 9px 10px; font-size: 11px; } .active-controls .transport { gap: 8px; } .watch-control { padding: 9px 12px; font-size: 11px; } .video-select-label select { font-size: 16px; } .catalog-empty { padding: 45px 20px; } .catalog-empty h2 { font-size: 17px; } }

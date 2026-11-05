@@ -1,13 +1,12 @@
-import type { LiveCamera } from "@/types/camera";
+import type { CameraVideo } from "@/types/video";
 
-export function CameraInfo({ camera }: { camera: LiveCamera }) {
+export function CameraInfo({ video }: { video: CameraVideo }) {
   return (
     <section className="panel-section camera-info" aria-labelledby="camera-info-title">
-      <div className="section-top"><h2 id="camera-info-title">カメラ情報</h2><span className="sample-badge">サンプル地点</span></div>
-      <p className="eyebrow">{camera.prefectureName} / {camera.locationName.split(" ")[0]}</p>
-      <h3>{camera.title}</h3>
-      <p className="location">{camera.locationName}</p>
-      <div className="camera-meta"><span className="category">{camera.category}</span><span>配信未登録</span></div>
+      <div className="section-top"><h2 id="camera-info-title">視聴中の動画</h2><span className="sample-badge">YouTube</span></div>
+      <h3>{video.title}</h3>
+      <p className="location">所在地の詳細は未登録です</p>
+      <p className="video-id">動画ID / {video.youtubeVideoId}</p>
     </section>
   );
 }

@@ -1,34 +1,36 @@
 # SORAMIRU
 
-日本各地のYouTubeライブカメラを集約し、PCで作業しながら各地の風景を流せるWebアプリです。現在はMVPに向けた開発環境と画面の骨組みを実装しています。
+日本各地のYouTubeライブカメラを、PC作業中のそばに流すWebアプリです。管理画面で動画URLを保存・プレビューし、選んで公開した動画をトップページで視聴できます。
+
+- 公開サイト: https://madotabi.vercel.app
+- 管理画面: https://madotabi.vercel.app/admin
 
 ## 使用技術
 
-- Next.js（App Router / srcディレクトリ構成）
-- React / TypeScript（strict）
-- Tailwind CSS v4（PostCSS経由）
-- ESLint（Next.js推奨ルール） / npm
+Next.js 16.4.4（App Router / src構成）、React 19、TypeScript、Tailwind CSS v4、ESLint、npm、Supabase（Auth・Postgres）、YouTube IFrame Player API。VercelのGit連携でデプロイします。
 
-初回構築時にnpmの`latest`から安定版を取得し、バージョンと依存解決結果を`package.json` / `package-lock.json`に固定しています。DB、認証、状態管理ライブラリ、UIライブラリ、テストフレームワーク、外部API SDKは導入していません。
+状態管理・UI・テストフレームワーク、YouTube/Open-Meteo用SDKは導入していません。認証とセッション更新にはSupabase公式SDKを使用します。
 
 ## ローカル起動
 
-Node.js 22.xとnpmが必要です。`.nvmrc`、GitHub Actions、VercelのNode.jsバージョンを22に揃えています。nvmを使用している場合は、先に`nvm install`と`nvm use`を実行してください。
+Node.js 22.xとnpmが必要です。nvmの場合は`nvm install`、`nvm use`で切り替えます。
 
 ```sh
-npm install
+npm ci
+cp .env.example .env.local # 初回のみ。既存ファイルを上書きしないこと
+# .env.local にSupabase URLとpublishable keyを設定
 npm run dev
 ```
 
-表示されたURL（通常は http://localhost:3000 ）をブラウザで開きます。終了は`Ctrl+C`です。画面表示だけなら環境変数は不要です。DB接続確認には`.env.example`の変数が必要です（後述）。
-
-ロックファイルどおりに再インストールする場合は`npm ci`を使用できます。
+通常は http://localhost:3000 を開きます。環境変数がない場合、公開カタログを読み込めない旨を表示します。secret key・service_role・YouTube APIキーは不要です。
 
 ```sh
-npm run lint       # ESLint
-npm run typecheck  # TypeScript
-npm run build      # 本番ビルド
-npm start          # 本番ビルド後の起動
+npm run check      # ESLint・型生成/型チェック・Node.js標準テスト
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm start          # 本番ビルド後に起動
 ```
 
 ## ディレクトリ構成
@@ -36,75 +38,50 @@ npm start          # 本番ビルド後の起動
 ```text
 src/
 ├── app/
-│   ├── layout.tsx          # 日本語設定・メタデータ
-│   ├── page.tsx            # トップページ
-│   └── globals.css         # Tailwind読み込み・テーマ・レスポンシブ配置
+│   ├── page.tsx                # 公開動画を取得
+│   ├── admin/                  # 管理画面
+│   ├── watch/[videoId]/        # 動画単体の視聴
+│   ├── api/health/             # DB接続確認
+│   ├── layout.tsx
+│   └── globals.css
 ├── components/
-│   ├── layout/Header.tsx
-│   ├── player/CameraPlayer.tsx
-│   ├── camera/CameraInfo.tsx
-│   ├── weather/WeatherInfo.tsx
-│   └── map/CameraMap.tsx
-├── data/cameras.ts         # 静的カメラ情報
-└── types/camera.ts         # LiveCamera型
+│   ├── admin/                  # 認証・URL保存・プレビュー・公開切替
+│   ├── player/                 # プレーヤーと動画選択
+│   ├── layout/
+│   ├── camera/
+│   ├── map/
+│   └── weather/
+├── lib/                        # URL解析・YouTube API・認証クライアント
+├── types/                      # LiveCamera・再生用CameraVideo
+└── data/cameras.ts             # 初期構築時のサンプル。現在の画面では使用しない
+supabase/migrations/            # DB定義とRLS
+tests/                        # URL・プレーヤー設定の標準テスト
 ```
 
-`hooks/`と`lib/`は必要な処理ができた段階で追加します。
+## 現在できること
 
-## 現在実装済みの範囲
+- メール確認済みの管理者によるログインとYouTube URL保存（タイトル・メモは任意）
+- URL形式の確認・正規化・動画IDの重複防止
+- 保存した動画の管理画面内プレビューと単体視聴
+- 管理者が明示的に公開した動画の、トップページでの選択・前後移動・再生
+- ミュート開始、音声・再生・全画面はYouTube標準コントロールを利用
+- 埋め込み禁止などのエラー案内、再試行、YouTubeへの外部リンク
+- PC横並び・モバイル縦並びのダークテーマ
 
-- ダークテーマのヘッダー、16:9プレーヤー領域、情報パネル、再生操作の配置領域
-- PC向けの左右レイアウトと、800px以下での縦並び
-- 地点情報、地図、天気のプレースホルダー
-- `LiveCamera`型と静的データ
-- 未実装ボタンの`disabled`指定と、サンプル・未接続状態の明記
+保存するのは未確認の登録候補です。保存だけでは公開されず、メモと管理者情報は公開カタログに含めません。配信のライブ状態は自動判定せず、所在地や天気も推測しません。初期サンプルの架空動画IDを配信として登録していません。
 
-**実際の映像再生や外部サービス接続は行いません。** 横浜市の地点は画面開発用のサンプルで、実在する配信の登録を意味しません。天気の数値も表示していません。
+## 手順と設計
 
-### カメラ情報の管理
-
-`src/data/cameras.ts`を編集します。`prefectureCode`は先頭ゼロを保持する文字列（例: `"01"`）、緯度経度は数値です。`category`は当面文字列とし、必要に応じてカテゴリ一覧を定義します。
-
-`youtubeVideoId`は未登録を表す`null`を許容します。実在する公開ライブ配信の動画IDと埋め込み可否を確認してから、手動で登録してください。架空の動画IDは登録しません。現段階ではIDを登録しても再生されず、次の段階でプレーヤーを実装する必要があります。
+- [公開・DB基盤](docs/infrastructure.md)
+- [管理画面の初回登録・認証・アクセス制御](docs/admin.md)
+- [動画の視聴・公開・検証記録](docs/playback.md)
 
 ## 今後の実装予定
 
-1. 実在するライブ配信を登録し、YouTube IFrame Player APIで再生する（未登録・配信終了・埋め込み不可への対応を含む）
-2. React Hooksで一定時間ごとの自動切替、前後移動、一時停止・再開、全国ランダム再生を実装する
-3. 再生設定をlocalStorageへ保存する（初期表示時のサーバー描画との差異に注意）
-4. Open-Meteoで天気を取得する（ローディング・取得失敗を表示する）
-5. GeoJSONまたはMapLibreによるカメラ位置の地図表示
-6. radiko・YouTube BGMへの外部リンク
-7. 全画面表示と情報パネルの開閉
-8. Vercelへのデプロイ
+一定時間ごとの自動切替、一時停止・再開、全国ランダム、localStorageによる設定保存、所在地の編集、地図、Open-Meteoの天気、radiko/YouTube BGMリンク、情報パネル開閉。
 
-今回はYouTube API、天気API、地図ライブラリの先行導入やデプロイは行っていません。
+## 検証と注意点
 
-## 構築時の検証（2026-11-03）
+Node.js 22で`npm run check`（23テスト）と`npm run build`が成功しています。実際の登録済み5動画で再生中状態、スマホ幅で横はみ出しがないことを確認しました。配信者の設定変更や終了により、その後再生できなくなる場合があります。
 
-- Next.js 16.4.4を使用。インストール、開発サーバー起動、HTTP 200、ブラウザ表示、本番ビルド、ESLint、TypeScriptを確認。
-- ブラウザで1440pxの左右配置、390pxの縦配置と横はみ出しがないこと、プレーヤーの16:9比率、操作ボタンの無効状態を確認。
-- 実行環境のサンドボックスではnpmの名前解決とTurbopackの内部ポート通信が制限されたため、インストール・起動・ビルドは必要な権限付きで実行。
-- ESLintはNext.js配下の各プラグインのpeer依存と整合する9.39.5を採用。npmからサポート終了警告が出ています。ESLint 10では一部プラグインのpeer依存が不整合となるため、プラグイン対応後にまとめて更新してください。
-- `npm audit`で開発ツールのESLint系依存（minimatchのglob処理に由来）に中程度16件の報告があります。破壊的なダウングレードや強制overrideは行っていません。外部由来のglobパターンを開発ツールに渡さず、上流の対応を確認して更新してください。
-
-## 公開・DB基盤（2026-11-04）
-
-GitHub・Vercel・Supabaseへ接続済みです。接続先、設定、検証範囲、今後の運用は[基盤の手順書](docs/infrastructure.md)を参照してください。
-
-- GitHub: https://github.com/Mizuckey/madotabi
-- Vercel: https://madotabi.vercel.app （本番エイリアスはログイン不要）
-- Supabase: madotabi（東京）、カメラテーブルとRLSを適用済み
-- CI: mainへのpushとPRでlint・型・ビルドを検証
-- サーバー側のDB接続確認: GET /api/health
-- 設定: .env.exampleを参照。publishable keyを使用し、追加SDKは不要
-
-カメラ表示は引き続き静的サンプルです。次はDBからのカメラ取得とYouTube再生を実装します。以前の「DB未導入」の記述は初回骨組み作成時点の記録です。
-
-## YouTube URL管理画面
-
-[管理画面](https://madotabi.vercel.app/admin)から、スマホ・PCでYouTubeのURLを登録候補として保存できます。タイトル・メモは任意、同じ動画の重複は防止します。管理者のメール確認とログインが必要です。
-
-初回登録・Supabaseの認証URL設定・権限設計は[管理画面の手順](docs/admin.md)を参照してください。認証とセッション更新には公式SDK `@supabase/supabase-js` を導入しました。以前の「SDK・認証は未導入」という記述は初期構築時点の記録です。
-
-`npm run check`にはNode.js標準テストによるURL検証も含まれます。テストフレームワークは導入していません。
+ESLint 9.39.5にはサポート終了警告があります。現時点のNext.js配下のプラグインと整合する版を使用しています。開発用のESLint系依存には既知の中程度の脆弱性報告が残っており、上流の対応を確認して更新する方針です。

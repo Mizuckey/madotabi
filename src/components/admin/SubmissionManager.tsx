@@ -1,6 +1,8 @@
 "use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import Link from "next/link";
+import { CameraPlayer } from "@/components/player/CameraPlayer";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { parseYouTubeUrl } from "@/lib/youtube";
 
@@ -11,8 +13,9 @@ type Submission = {
   title: string;
   notes: string;
   created_at: string;
+  publication: { id: string } | null;
 };
-const fields = "id,youtube_video_id,youtube_url,title,notes,created_at";
+const fields = "id,youtube_video_id,youtube_url,title,notes,created_at,publication:camera_videos(id)";
 const pageSize = 20;
 
 export function SubmissionManager({ supabase, userId }: { supabase: SupabaseClient; userId: string }) {
@@ -26,6 +29,10 @@ export function SubmissionManager({ supabase, userId }: { supabase: SupabaseClie
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [success, setSuccess] = useState("");
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [publicationMessage, setPublicationMessage] = useState("");
+  const [publicationError, setPublicationError] = useState("");
   const urlInput = useRef<HTMLInputElement>(null);
   const parsed = parseYouTubeUrl(url);
 
@@ -71,7 +78,7 @@ export function SubmissionManager({ supabase, userId }: { supabase: SupabaseClie
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving || loading || loadingMore) return;
+    if (saving || loading || loadingMore || publishingId) return;
     setSaveError(""); setSuccess(""); setTouched(true);
     if (!parsed) { setSaveError("YouTubeの動画URLを入力してください。watch・youtu.be・live形式などに対応しています。"); urlInput.current?.focus(); return; }
     const form = event.currentTarget;
@@ -93,6 +100,20 @@ export function SubmissionManager({ supabase, userId }: { supabase: SupabaseClie
     finally { setSaving(false); }
   }
 
+  async function changePublication(item: Submission) {
+    if (publishingId || saving || loading || loadingMore) return;
+    setPublishingId(item.id); setPublicationMessage(""); setPublicationError("");
+    try {
+      const { error } = item.publication
+        ? await supabase.from("camera_videos").delete().eq("id", item.id).select("id").single()
+        : await supabase.rpc("publish_camera_submission", { submission_id: item.id });
+      if (error) { setPublicationError("公開状態を変更できませんでした。管理権限と通信状況を確認し、一覧を更新してください。"); return; }
+      setItems(current => current.map(existing => existing.id === item.id ? { ...existing, publication: item.publication ? null : { id: item.id } } : existing));
+      setPublicationMessage(item.publication ? "トップページから非公開にしました。" : "トップページに公開しました。公開されるのはタイトルとYouTube動画情報だけです。");
+    } catch { setPublicationError("公開状態を変更できませんでした。通信状況を確認してください。"); }
+    finally { setPublishingId(null); }
+  }
+
   return (
     <div className="admin-workspace">
       <section className="admin-card admin-add-card" aria-labelledby="add-title">
@@ -107,22 +128,31 @@ export function SubmissionManager({ supabase, userId }: { supabase: SupabaseClie
           <input id="camera-title" name="title" type="text" maxLength={100} placeholder="例：海が見えるライブカメラ" disabled={saving} />
           <label htmlFor="camera-notes">メモ <span className="admin-optional">任意</span></label>
           <textarea id="camera-notes" name="notes" rows={3} maxLength={1000} placeholder="場所や気づいたことなど" disabled={saving} />
-          <button className="admin-primary" type="submit" disabled={saving || loading || loadingMore}>{saving ? "保存しています…" : "URLを保存"}<span aria-hidden="true"> ＋</span></button>
+          <button className="admin-primary" type="submit" disabled={saving || loading || loadingMore || !!publishingId}>{saving ? "保存しています…" : "URLを保存"}<span aria-hidden="true"> ＋</span></button>
           <p className="admin-security-note">配信の実在・ライブ状態・埋め込み可否は未確認のまま保存されます。</p>
         </form>
       </section>
       <section className="admin-library" aria-labelledby="library-title">
-        <div className="admin-library-header"><div><span className="admin-step">02 / YOUR COLLECTION</span><h2 id="library-title">登録候補 <span className="admin-count">{loading ? "—" : count}</span></h2></div><button className="admin-secondary" type="button" onClick={reload} disabled={loading || loadingMore || saving}>更新</button></div>
+        <div className="admin-library-header"><div><span className="admin-step">02 / YOUR COLLECTION</span><h2 id="library-title">登録候補 <span className="admin-count">{loading ? "—" : count}</span></h2></div><button className="admin-secondary" type="button" onClick={reload} disabled={loading || loadingMore || saving || !!publishingId}>更新</button></div>
+        {publicationMessage && <p className="admin-notice" role="status">{publicationMessage}</p>}
+        {publicationError && <p className="admin-error" role="alert">{publicationError}</p>}
         {listError && <div className="admin-error" role="alert">{listError} <button className="admin-text-button" onClick={reload} disabled={loading}>再取得</button></div>}
         {loading ? <div className="admin-card admin-empty" role="status">登録候補を読み込んでいます…</div> : items.length === 0 && !listError ? (
           <div className="admin-card admin-empty"><span className="admin-empty-mark" aria-hidden="true">＋</span><h3>次に眺めたい景色を、ひとつ。</h3><p>保存したYouTube URLがここに並びます。<br />スマホで見つけたときにも、そのまま追加できます。</p></div>
         ) : (
           <ul className="admin-items">{items.map(item => (
-            <li key={item.id} className="admin-item"><div className="admin-item-top"><span className="admin-item-label">未確認</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.notes && <p className="admin-item-notes">{item.notes}</p>}</li>
+            <li key={item.id} className="admin-item"><div className="admin-item-top"><span className="admin-item-label">{item.publication ? "公開中" : "登録候補"}</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.notes && <p className="admin-item-notes">{item.notes}</p>}
+              <div className="admin-video-actions">
+                <button className="admin-secondary" type="button" aria-expanded={previewId === item.id} aria-controls={`preview-${item.id}`} onClick={() => setPreviewId(current => current === item.id ? null : item.id)}>{previewId === item.id ? "プレビューを閉じる" : "動画をプレビュー"}</button>
+                <Link className="admin-watch-link" href={`/watch/${item.youtube_video_id}`} target="_blank" rel="noopener noreferrer">別画面で視聴 ↗</Link>
+                <button className="admin-secondary" type="button" disabled={!!publishingId || saving || loading || loadingMore} onClick={() => changePublication(item)}>{publishingId === item.id ? "変更中…" : item.publication ? "非公開に戻す" : "トップに公開"}</button>
+              </div>
+              {previewId === item.id && <div className="admin-video-preview" id={`preview-${item.id}`}><p>プレビューしても公開状態は変わりません。</p><CameraPlayer video={{ id: item.id, title: item.title || "YouTube動画", youtubeVideoId: item.youtube_video_id }} /></div>}
+            </li>
           ))}</ul>
         )}
-        {!loading && items.length > 0 && items.length < count && <button className="admin-secondary admin-more" onClick={loadMore} disabled={loadingMore || saving}>{loadingMore ? "読み込み中…" : "さらに読み込む"}</button>}
-        <p className="admin-library-note">保存したURLは管理者だけが閲覧できます。公開画面にはまだ反映されません。</p>
+        {!loading && items.length > 0 && items.length < count && <button className="admin-secondary admin-more" onClick={loadMore} disabled={loadingMore || saving || !!publishingId}>{loadingMore ? "読み込み中…" : "さらに読み込む"}</button>}
+        <p className="admin-library-note">候補とメモは管理者だけが閲覧できます。「トップに公開」で、動画情報だけを公開できます。</p>
       </section>
     </div>
   );

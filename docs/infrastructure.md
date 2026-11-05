@@ -11,7 +11,7 @@
 | Supabase project ref | `udyuftpysfagdnkoqxvq` |
 | Node.js | 22.x（package.json / .nvmrc / CI / Vercelで統一） |
 
-アプリの表示名は仮称のSORAMIRUのままです。画面のカメラ情報は引き続き静的なサンプルを使用します。Supabaseへの接続は、現段階ではサーバー側の`/api/health`で検証します。カメラ取得処理と映像再生は次の実装です。
+アプリの表示名は仮称のSORAMIRUのままです。管理画面でURLを登録・プレビューし、明示的に公開した動画をトップページで再生できます。DB接続確認は`/api/health`です。詳しくは[管理画面](admin.md)と[動画の視聴と公開](playback.md)を参照してください。
 
 ## 開発の流れ
 
@@ -83,7 +83,7 @@ curl -i http://localhost:3000/api/health
 - Row Level Security（RLS）を有効化し、公開済み行のみanon/authenticatedがSELECT可能。
 - anon/authenticatedにはINSERT・UPDATE・DELETE権限を付与しない。
 - 実在配信の登録前なのでデータは空。サンプル・架空の動画IDは投入しない。
-- データ登録はまずSupabase管理画面を利用。ユーザー認証・管理画面・Storage・Realtimeは未実装。
+- データ登録はまずSupabase管理画面を利用。管理画面とユーザー認証は実装済み。Storage・Realtimeは未導入。
 
 ### SQLの変更管理
 
