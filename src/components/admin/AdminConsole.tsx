@@ -4,8 +4,9 @@ import type { User } from "@supabase/supabase-js";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { useEffect, useState, type FormEvent } from "react";
 import { SubmissionManager } from "./SubmissionManager";
+import { PrivateWatch } from "./PrivateWatch";
 
-export function AdminConsole({ supabaseUrl, publishableKey }: { supabaseUrl: string; publishableKey: string }) {
+export function AdminConsole({ supabaseUrl, publishableKey, view = "library" }: { supabaseUrl: string; publishableKey: string; view?: "library" | "watch" }) {
   // 渡すキーはpublishable keyのみ。管理権限はDB側でも毎回確認する。
   const [supabase] = useState(() => getBrowserSupabase(supabaseUrl, publishableKey));
   const [user, setUser] = useState<User | null>(null);
@@ -115,7 +116,7 @@ export function AdminConsole({ supabaseUrl, publishableKey }: { supabaseUrl: str
         <section className="admin-card"><h2>管理権限を確認できませんでした</h2><p>通信状況を確認して、再度お試しください。</p><button className="admin-secondary" onClick={() => { setAccess(null); setAccessRetry(v => v + 1); }}>再確認</button></section>
       ) : !currentAccess.allowed ? (
         <section className="admin-card"><h2>このアカウントに管理権限はありません</h2><p>管理者として指定したメールアドレスか、メール確認が完了しているかをご確認ください。</p></section>
-      ) : <SubmissionManager key={user.id} supabase={supabase} userId={user.id} />}
+      ) : view === "watch" ? <PrivateWatch key={user.id} supabase={supabase} /> : <SubmissionManager key={user.id} supabase={supabase} userId={user.id} />}
     </>
   );
 }

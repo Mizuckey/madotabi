@@ -82,3 +82,7 @@
 .admin-video-preview > p { font-size: 10px; color: #a5bbac; line-height: 1.8; margin: 0 0 12px; }
 .admin-video-preview .player-error h2 { font-size: 14px; }
 .admin-video-preview .player-error p { font-size: 10px; }
+.admin-header-links { display: flex; align-items: center; gap: 16px; }
+.private-watch-shell { max-width: 1800px; }
+.private-watch-note { border-left: 2px solid #66816f; padding: 8px 12px; color: #a9c2b1; font-size: 11px; line-height: 1.9; margin: 0 0 24px; }
+@media (max-width: 700px) { .admin-header-links { gap: 8px; flex-wrap: wrap; justify-content: end; } .admin-header-links .admin-back { padding: 5px 0; } .private-watch-shell .admin-heading h1 { font-size: 22px; } }

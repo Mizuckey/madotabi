@@ -17,7 +17,7 @@ export default function AdminPage() {
     <div className="admin-shell">
       <header className="admin-header">
         <Link href="/" className="brand">窓旅<span className="admin-wordmark">管理</span></Link>
-        <Link href="/" className="admin-back">風景の画面へ <span aria-hidden="true">↗</span></Link>
+        <div className="admin-header-links"><Link href="/admin/watch" className="admin-back">登録動画を連続視聴 →</Link><Link href="/" className="admin-back">風景の画面へ <span aria-hidden="true">↗</span></Link></div>
       </header>
       <main className="admin-main">
         <div className="admin-heading"><p className="eyebrow">CAMERA LIBRARY</p><h1>気になる景色を、ストック。</h1><p>YouTubeのURLを保存して、あとからゆっくり整えましょう。</p></div>
