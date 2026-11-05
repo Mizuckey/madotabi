@@ -166,3 +166,14 @@
 .personal-shell .scenery-edit-form, .personal-shell .scenery-delete-confirm { grid-column: 1 / -1; }
 .personal-shell .scenery-edit-form { margin-top: 8px; padding-top: 8px; }
 @media (max-width: 1000px) { .personal-shell .admin-item > .admin-video-actions { grid-column: 1 / -1; grid-row: auto; flex-wrap: wrap; } }
+.location-search { padding: 4px 0 12px; }
+.location-search-row { display: flex; align-items: center; gap: 6px; }
+.location-search-row input { flex: 1; min-width: 0; }
+.location-search-row button { flex-shrink: 0; }
+.location-candidates { list-style: none; margin: 10px 0; padding: 0; border-top: 1px solid var(--border); }
+.location-candidates button { width: 100%; min-height: 44px; padding: 10px 6px; text-align: left; font-size: 12px; }
+.location-candidates small { display: block; font-size: 10px; color: var(--muted); margin-top: 4px; }
+.location-search a { color: #b2cbbb; text-underline-offset: 3px; }
+.personal-shell .scenery-location { grid-column: 1 / -1; color: #a1b8a8; font-size: 11px; margin: 3px 0 0; }
+.personal-stage.is-library .admin-add-card { position: static; }
+.location-picker summary { overflow-wrap: anywhere; }

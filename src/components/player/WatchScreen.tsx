@@ -34,7 +34,7 @@ function PlaylistScreen({ videos, singleVideo, initialVideoId }: Required<Pick<P
   return (
     <div className="watch-screen" data-selected-video={video.youtubeVideoId}>
       <CameraPlayer video={video} onPlaybackChange={reportPlayback} compact />
-      <InfoTicker key={video.id} title={video.title} />
+      <InfoTicker key={video.id} title={video.title} location={video.location} />
       <section className="watch-toolbar" aria-label="再生切替" data-rotation-active={rotation.automatic}>
         {!singleVideo ? <>
           <div className="transport"><button type="button" className="watch-control" onClick={() => rotation.move(-1)} disabled={videos.length < 2} aria-label="前のカメラ">←</button><button type="button" className="watch-control" onClick={() => rotation.move(1)} disabled={videos.length < 2} aria-label="次のカメラ">→</button></div>

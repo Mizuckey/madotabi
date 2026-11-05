@@ -2,6 +2,9 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { LocationPicker } from "@/components/camera/LocationPicker";
+import { locationColumns, locationFromRow } from "@/lib/location";
+import type { CameraLocation, LocationColumns } from "@/types/location";
 import { parseYouTubeUrl } from "@/lib/youtube";
 
 type Submission = {
@@ -13,8 +16,8 @@ type Submission = {
   created_at: string;
   position: number;
   deleted_at: string | null;
-};
-const fields = "id,youtube_video_id,youtube_url,title,notes,created_at,position,deleted_at";
+} & LocationColumns;
+const fields = "id,youtube_video_id,youtube_url,title,notes,created_at,position,deleted_at,location_name,latitude,longitude";
 const pageSize = 100;
 
 export function SubmissionManager({ supabase, userId, onWatch }: { supabase: SupabaseClient; userId: string; onWatch(videoId: string): void }) {
@@ -22,12 +25,14 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   const [loading, setLoading] = useState(true);
   const [changing, setChanging] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [editing, setEditing] = useState<{ id: string; title: string; notes: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; title: string; notes: string; location: CameraLocation | null } | null>(null);
   const [editError, setEditError] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [actionError, setActionError] = useState("");
   const [message, setMessage] = useState("");
   const [listError, setListError] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [newLocation, setNewLocation] = useState<CameraLocation | null>(null);
   const [url, setUrl] = useState("");
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -101,14 +106,15 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
     if (!editing || busy) return;
     const title = editing.title.trim();
     const notes = editing.notes.trim();
+    if (!title) { setEditError("タイトルを入力してください。"); return; }
     if (title.length > 100 || notes.length > 1000) { setEditError("タイトルは100文字、メモは1000文字以内で入力してください。"); return; }
     setChanging(true); setEditError(""); setMessage("");
     try {
-      const { data, error } = await supabase.from("camera_submissions").update({ title, notes }).eq("id", editing.id).eq("created_by", userId).select(fields).single<Submission>();
+      const { data, error } = await supabase.from("camera_submissions").update({ title, notes, ...locationColumns(editing.location) }).eq("id", editing.id).eq("created_by", userId).select(fields).single<Submission>();
       if (error || !data) throw new Error("Edit failed");
       setItems(current => current.map(item => item.id === data.id ? data : item));
       setEditing(null);
-      setMessage("タイトルとメモを保存しました。");
+      setMessage("景色の情報を保存しました。");
     } catch { setEditError("保存結果を確認できませんでした。入力は残しています。再度保存するか、リストを更新して確認してください。"); }
     finally { setChanging(false); }
   }
@@ -122,14 +128,15 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
     const values = new FormData(form);
     const title = String(values.get("title") ?? "").trim();
     const notes = String(values.get("notes") ?? "").trim();
+    if (!title || title.length > 100) { setSaveError("タイトルを1〜100文字で入力してください。"); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from("camera_submissions").insert({ youtube_video_id: parsed.videoId, youtube_url: parsed.canonicalUrl, title, notes, created_by: userId });
+      const { error } = await supabase.from("camera_submissions").insert({ youtube_video_id: parsed.videoId, youtube_url: parsed.canonicalUrl, title, notes, ...locationColumns(newLocation), created_by: userId });
       if (error) {
         setSaveError(error.code === "23505" ? "この動画は登録済みです。削除した場合は「削除した景色」から戻せます。" : "保存できませんでした。入力内容・通信状況・ログイン状態を確認して再度お試しください。");
         return;
       }
-      form.reset(); setUrl(""); setTouched(false);
+      form.reset(); setUrl(""); setNewTitle(""); setNewLocation(null); setTouched(false);
       onWatch(parsed.videoId);
     } catch { setSaveError("接続できませんでした。入力内容はそのままで再度お試しください。"); }
     finally { setSaving(false); }
@@ -138,18 +145,16 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   return (
     <div className="admin-workspace">
       <section className="admin-card admin-add-card" aria-labelledby="add-title">
-        <div className="admin-card-heading"><span className="admin-step">01 / ADD A VIEW</span><h2 id="add-title">動画URLを追加</h2><p>まずはURLだけでOK。気づいたことはメモに残せます。</p></div>
+        <div className="admin-card-heading"><span className="admin-step">01 / ADD A VIEW</span><h2 id="add-title">動画URLを追加</h2><p>URLとタイトルを登録。地名から天気の地点も選べます。</p></div>
         {saveError && <p className="admin-error" role="alert">{saveError}</p>}
         <form onSubmit={save} className="admin-form">
           <label htmlFor="camera-url">YouTube URL <span className="admin-required">必須</span></label>
           <input ref={urlInput} id="camera-url" name="url" type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://www.youtube.com/watch?v=…" required maxLength={2048} value={url} onChange={e => { setUrl(e.target.value); setSaveError(""); }} onBlur={() => setTouched(true)} disabled={busy} aria-invalid={touched && !!url && !parsed} aria-describedby="url-help" />
           <p className="admin-field-hint" id="url-help">{parsed ? `動画ID：${parsed.videoId} · URLの形式を確認しました` : touched && url ? "YouTubeの動画URLを確認してください。" : "通常の動画URL、短縮URL、/live/ 形式に対応。"}</p>
-          <details className="personal-details"><summary>タイトル・メモを追加（任意）</summary><div className="admin-form">
-          <label htmlFor="camera-title">タイトル <span className="admin-optional">任意</span></label>
-          <input id="camera-title" name="title" type="text" maxLength={100} placeholder="例：海が見えるライブカメラ" disabled={busy} />
-          <label htmlFor="camera-notes">メモ <span className="admin-optional">任意</span></label>
-          <textarea id="camera-notes" name="notes" rows={3} maxLength={1000} placeholder="場所や気づいたことなど" disabled={busy} />
-          </div></details>
+          <label htmlFor="camera-title">タイトル <span className="admin-required">必須</span></label>
+          <input id="camera-title" name="title" type="text" required maxLength={100} placeholder="例：札幌すすきの ライブカメラ" value={newTitle} onChange={e => setNewTitle(e.target.value)} disabled={busy} />
+          <LocationPicker title={newTitle} value={newLocation} onChange={setNewLocation} disabled={busy} />
+          <details className="personal-details"><summary>メモを追加（任意）</summary><div className="admin-form"><label htmlFor="camera-notes">メモ</label><textarea id="camera-notes" name="notes" rows={3} maxLength={1000} placeholder="場所や気づいたことなど" disabled={busy} /></div></details>
           <button className="admin-primary" type="submit" disabled={saving || loading || changing}>{saving ? "保存しています…" : "保存して見る"}<span aria-hidden="true"> ＋</span></button>
           <p className="admin-security-note">配信の実在・ライブ状態・埋め込み可否は未確認のまま保存されます。</p>
         </form>
@@ -164,9 +169,9 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
           <div className="admin-card admin-empty"><span className="admin-empty-mark" aria-hidden="true">＋</span><h3>{showDeleted ? "削除した景色はありません" : "次に眺めたい景色を、ひとつ。"}</h3><p>{showDeleted ? "削除した景色はここからリストに戻せます。" : "URLを追加すると、ここに景色が並びます。"}</p></div>
         ) : (
           <ul className="admin-items">{visible.map((item, index) => (
-            <li key={item.id} className="admin-item"><div className="admin-item-top"><span className="admin-item-label">{showDeleted ? "削除済み" : `${index + 1} 番目`}</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3 title={item.title || "タイトル未設定"}>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.notes && <p className="admin-item-notes" title={item.notes}>{item.notes}</p>}
+            <li key={item.id} className="admin-item"><div className="admin-item-top"><span className="admin-item-label">{showDeleted ? "削除済み" : `${index + 1} 番目`}</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3 title={item.title || "タイトル未設定"}>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.location_name && <p className="scenery-location">天気の地点：{item.location_name}</p>}{item.notes && <p className="admin-item-notes" title={item.notes}>{item.notes}</p>}
               <div className="admin-video-actions">
-                <button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing({ id: item.id, title: item.title, notes: item.notes }); setEditError(""); setConfirmDelete(null); }}>編集</button>
+                <button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing({ id: item.id, title: item.title, notes: item.notes, location: locationFromRow(item) }); setEditError(""); setConfirmDelete(null); }}>編集</button>
                 {showDeleted ? <button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, false)}>リストに戻す</button> : <>
                   <button className="admin-secondary" type="button" disabled={busy} onClick={() => onWatch(item.youtube_video_id)}>この景色を見る →</button>
                   <button className="admin-secondary" type="button" disabled={busy || index === 0} aria-label={`${item.title || "この景色"}を上へ`} onClick={() => reorder(index, -1)}>↑ 上へ</button>
@@ -175,7 +180,8 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
                 </>}
               </div>
               {editing?.id === item.id && <form className="admin-form scenery-edit-form" onSubmit={saveEdit} aria-label="景色を編集">
-                <label htmlFor={`edit-title-${item.id}`}>タイトル</label><input id={`edit-title-${item.id}`} value={editing.title} maxLength={100} disabled={busy} onChange={e => setEditing({ ...editing, title: e.target.value })} />
+                <label htmlFor={`edit-title-${item.id}`}>タイトル</label><input id={`edit-title-${item.id}`} required value={editing.title} maxLength={100} disabled={busy} onChange={e => setEditing({ ...editing, title: e.target.value })} />
+                <LocationPicker title={editing.title} value={editing.location} onChange={location => setEditing({ ...editing, location })} disabled={busy} />
                 <label htmlFor={`edit-notes-${item.id}`}>メモ</label><textarea id={`edit-notes-${item.id}`} value={editing.notes} rows={3} maxLength={1000} disabled={busy} onChange={e => setEditing({ ...editing, notes: e.target.value })} />
                 {editError && <p className="admin-error" role="alert">{editError}</p>}
                 <div className="admin-video-actions"><button className="admin-primary" type="submit" disabled={busy}>{changing ? "保存中…" : "変更を保存"}</button><button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing(null); setEditError(""); }}>キャンセル</button></div>

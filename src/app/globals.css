@@ -169,3 +169,5 @@ h1 { font-size: 22px; font-weight: 400; letter-spacing: 2px; margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .info-track { animation: none; } .info-viewport { overflow-x: auto; } }
 @media (max-height: 460px) { .personal-shell { height: auto; min-height: 100dvh; overflow: visible; } .personal-shell .personal-main { min-height: 360px; } }
+.weather-credit { flex-shrink: 0; color: #91a99a; font-size: 9px; padding: 8px; text-underline-offset: 3px; }
+.weather-credit { display: flex; gap: 6px; white-space: nowrap; }
