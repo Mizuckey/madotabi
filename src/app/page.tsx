@@ -32,7 +32,7 @@ export default async function Home() {
         <div className="page-heading"><div><p className="eyebrow">A WINDOW TO JAPAN</p><h1>いつもの時間に、ちがう景色を。</h1></div><span className="outline-label">{loadError ? "一覧の取得に失敗しました" : `公開カメラ ${videos.length} 件 / YouTube`}</span></div>
         <WatchScreen videos={videos} loadError={loadError} />
       </main>
-      <footer className="app-footer"><span>SORAMIRU</span><p>日本のどこかと、つながる窓。</p><span>MVP / 0.2</span></footer>
+      <footer className="app-footer"><span>窓旅</span><p>日本のどこかと、つながる窓。</p><span>MVP / 0.2</span></footer>
     </div>
   );
 }

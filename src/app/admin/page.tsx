@@ -5,7 +5,7 @@ import "./admin.css";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "カメラ管理 | SORAMIRU",
+  title: "カメラ管理 | 窓旅",
   robots: { index: false, follow: false },
 };
 
@@ -16,7 +16,7 @@ export default function AdminPage() {
   return (
     <div className="admin-shell">
       <header className="admin-header">
-        <Link href="/" className="brand">SORAMIRU<span className="admin-wordmark">管理</span></Link>
+        <Link href="/" className="brand">窓旅<span className="admin-wordmark">管理</span></Link>
         <Link href="/" className="admin-back">風景の画面へ <span aria-hidden="true">↗</span></Link>
       </header>
       <main className="admin-main">
@@ -25,7 +25,7 @@ export default function AdminPage() {
           <section className="admin-card"><h2>管理画面の準備中です</h2><p>接続設定を確認してから、もう一度お試しください。</p></section>
         )}
       </main>
-      <footer className="admin-footer"><span>SORAMIRU / CAMERA LIBRARY</span><span>保存したURLは、自動で公開されません。</span></footer>
+      <footer className="admin-footer"><span>窓旅 / CAMERA LIBRARY</span><span>保存したURLは、自動で公開されません。</span></footer>
     </div>
   );
 }

@@ -11,7 +11,7 @@
 | Supabase project ref | `udyuftpysfagdnkoqxvq` |
 | Node.js | 22.x（package.json / .nvmrc / CI / Vercelで統一） |
 
-アプリの表示名は仮称のSORAMIRUのままです。管理画面でURLを登録・プレビューし、明示的に公開した動画をトップページで再生できます。DB接続確認は`/api/health`です。詳しくは[管理画面](admin.md)と[動画の視聴と公開](playback.md)を参照してください。
+サービス名は「窓旅」です。管理画面でURLを登録・プレビューし、明示的に公開した動画をトップページで再生できます。DB接続確認は`/api/health`です。詳しくは[管理画面](admin.md)と[動画の視聴と公開](playback.md)を参照してください。
 
 ## 開発の流れ
 
