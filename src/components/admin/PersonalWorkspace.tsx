@@ -13,6 +13,7 @@ export function PersonalWorkspace({ supabase, userId, initialView }: { supabase:
   const [view, setView] = useState(initialView);
   const [initialVideoId, setInitialVideoId] = useState<string>();
   const [liveVideo, setLiveVideo] = useState<CameraVideo | null>(null);
+  const [libraryTab, setLibraryTab] = useState<"videos" | "channels">("videos");
   const monitor = useChannelMonitor(supabase);
   function watch(videoId?: string) {
     setLiveVideo(null);
@@ -23,18 +24,18 @@ export function PersonalWorkspace({ supabase, userId, initialView }: { supabase:
     const video = await monitor.verify(videoId);
     if (video) { setLiveVideo(video); setView("watch"); monitor.dismiss(videoId); }
   }
+  const notification = monitor.notifications.length ? <LiveNotifications notifications={monitor.notifications} onWatch={watchLive} onDismiss={monitor.dismiss} /> : undefined;
   return <div className="personal-workspace">
     <nav className="personal-navigation" aria-label="画面切替">
       <button type="button" className="admin-secondary" aria-pressed={view === "watch"} onClick={() => watch()}>景色を見る</button>
       <button type="button" className="admin-secondary" aria-pressed={view === "add"} onClick={() => setView("add")}>景色リスト</button>
     </nav>
     {view === "watch" && <>
-      <LiveNotifications notifications={monitor.notifications} onWatch={watchLive} onDismiss={monitor.dismiss} />
       {monitor.error && <p className="channel-monitor-error" role="status">{monitor.error}<button className="admin-secondary" type="button" disabled={monitor.busy} onClick={() => void monitor.refresh(true)}>再確認</button></p>}
     </>}
-    <div className={`personal-stage${view === "add" ? " is-library" : ""}`}>{view === "watch" ? <PrivateWatch key={liveVideo?.youtubeVideoId ?? "collection"} supabase={supabase} userId={userId} initialVideoId={initialVideoId} liveVideo={liveVideo} onReturn={() => watch()} /> : <>
-      <ChannelManager supabase={supabase} userId={userId} channels={monitor.channels} configured={monitor.configured} checking={monitor.busy} error={monitor.error} refresh={monitor.refresh} />
-      <SubmissionManager supabase={supabase} userId={userId} onWatch={watch} />
+    <div className={`personal-stage${view === "add" ? " is-library" : ""}`}>{view === "watch" ? <PrivateWatch key={liveVideo?.youtubeVideoId ?? "collection"} supabase={supabase} userId={userId} initialVideoId={initialVideoId} liveVideo={liveVideo} notification={notification} onReturn={() => watch()} /> : <>
+      <nav className="scenery-list-tabs" aria-label="登録する種類"><button className="admin-secondary" type="button" aria-pressed={libraryTab === "videos"} onClick={() => setLibraryTab("videos")}>景色の登録・編集</button><button className="admin-secondary" type="button" aria-pressed={libraryTab === "channels"} onClick={() => setLibraryTab("channels")}>チャンネルの登録</button></nav>
+      {libraryTab === "channels" ? <ChannelManager supabase={supabase} userId={userId} channels={monitor.channels} configured={monitor.configured} checking={monitor.busy} error={monitor.error} refresh={monitor.refresh} /> : <SubmissionManager supabase={supabase} userId={userId} onWatch={watch} />}
     </>}</div>
   </div>;
 }

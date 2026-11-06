@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, type ReactNode } from "react";
 import type { PlaybackStatus } from "@/lib/youtube-player";
 import type { CameraVideo } from "@/types/video";
 import { CameraPlayer } from "./CameraPlayer";
@@ -9,9 +9,9 @@ import { InfoTicker } from "./InfoTicker";
 import { useCameraRotation } from "@/hooks/useCameraRotation";
 import { ROTATION_INTERVALS } from "@/lib/rotation";
 
-type Props = { videos: CameraVideo[]; loadError?: boolean; singleVideo?: boolean; initialVideoId?: string };
+type Props = { videos: CameraVideo[]; loadError?: boolean; singleVideo?: boolean; initialVideoId?: string; informationVideos?: CameraVideo[]; notification?: ReactNode };
 
-export function WatchScreen({ videos, loadError = false, singleVideo = false, initialVideoId }: Props) {
+export function WatchScreen({ videos, loadError = false, singleVideo = false, initialVideoId, informationVideos, notification }: Props) {
   if (!videos.length) return (
     <section className="catalog-empty">
       <p className="eyebrow">CAMERA VIEW</p><h2>{loadError ? "動画の一覧を取得できませんでした" : "登録されている動画はまだありません"}</h2>
@@ -20,10 +20,10 @@ export function WatchScreen({ videos, loadError = false, singleVideo = false, in
     </section>
   );
 
-  return <PlaylistScreen key={JSON.stringify(videos.map(video => video.id))} videos={videos} singleVideo={singleVideo} initialVideoId={initialVideoId} />;
+  return <PlaylistScreen key={JSON.stringify(videos.map(video => video.id))} videos={videos} singleVideo={singleVideo} initialVideoId={initialVideoId} informationVideos={informationVideos} notification={notification} />;
 }
 
-function PlaylistScreen({ videos, singleVideo, initialVideoId }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId">) {
+function PlaylistScreen({ videos, singleVideo, initialVideoId, informationVideos, notification }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId" | "informationVideos" | "notification">) {
   const rotation = useCameraRotation(videos.length, Math.max(0, videos.findIndex(video => video.youtubeVideoId === initialVideoId)));
   const video = videos[rotation.index];
   const onPlaybackChange = rotation.onPlaybackChange;
@@ -33,8 +33,8 @@ function PlaylistScreen({ videos, singleVideo, initialVideoId }: Required<Pick<P
 
   return (
     <div className="watch-screen" data-selected-video={video.youtubeVideoId}>
-      <CameraPlayer video={video} onPlaybackChange={reportPlayback} compact />
-      <InfoTicker key={video.id} title={video.title} location={video.location} />
+      <CameraPlayer video={video} onPlaybackChange={reportPlayback} notification={notification} compact />
+      <InfoTicker videos={informationVideos ?? videos} />
       <section className="watch-toolbar" aria-label="再生切替" data-rotation-active={rotation.automatic}>
         {!singleVideo ? <>
           <div className="transport"><button type="button" className="watch-control" onClick={() => rotation.move(-1)} disabled={videos.length < 2} aria-label="前のカメラ">←</button><button type="button" className="watch-control" onClick={() => rotation.move(1)} disabled={videos.length < 2} aria-label="次のカメラ">→</button></div>

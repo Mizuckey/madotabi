@@ -1,23 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CameraVideo } from "@/types/video";
 
 type Notice = { channelId: string; channelTitle: string; video: CameraVideo };
-export function LiveNotifications({ notifications, onWatch, onDismiss }: { notifications: Notice[]; onWatch(videoId: string): Promise<void>; onDismiss(videoId: string): void }) {
-  const [opening, setOpening] = useState<string | null>(null);
-  if (!notifications.length) return null;
-  async function watch(videoId: string) {
+type Props = { notifications: Notice[]; onWatch(videoId: string): Promise<void>; onDismiss(videoId: string): void };
+export function LiveNotifications(props: Props) {
+  if (!props.notifications.length) return null;
+  return <NotificationCarousel key={props.notifications.map(notice => notice.video.youtubeVideoId).join(',')} {...props} />;
+}
+
+function NotificationCarousel({ notifications, onWatch, onDismiss }: Props) {
+  const [index, setIndex] = useState(0);
+  const [opening, setOpening] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const notice = notifications[index];
+  useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (notifications.length < 2 || opening || hovered || focused || reducedMotion.matches) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') setIndex(current => (current + 1) % notifications.length);
+    }, 8000);
+    return () => clearInterval(timer);
+  }, [notifications.length, opening, hovered, focused]);
+  async function watch() {
     if (opening) return;
-    setOpening(videoId);
-    try { await onWatch(videoId); } finally { setOpening(null); }
+    setOpening(true);
+    try { await onWatch(notice.video.youtubeVideoId); } finally { setOpening(false); }
   }
-  return <section className="live-notifications" aria-label="チャンネルのライブ通知">
-    <p className="sr-only" role="status">登録チャンネルで{notifications.length}件のライブ配信を見つけました。</p>
-    {notifications.map(({ channelTitle, video }) => <div className="live-notification" key={video.youtubeVideoId}>
-      <p title={`${channelTitle}：${video.title}`}><span className="status-dot" aria-hidden="true" />ライブ配信中 · {channelTitle}<strong>{video.title}</strong></p>
-      <button className="admin-secondary" type="button" disabled={!!opening} onClick={() => void watch(video.youtubeVideoId)}>{opening === video.youtubeVideoId ? "確認中…" : "ライブを見る"}</button>
-      <button className="admin-secondary" type="button" aria-label={`${video.title}の通知を閉じる`} onClick={() => onDismiss(video.youtubeVideoId)}>×</button>
-    </div>)}
+  return <section className="live-notifications" aria-label="チャンネルのライブ通知" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
+    <span className="sr-only" role="status">ライブ配信が{notifications.length}件あります。</span>
+    <span className="live-notification-message" key={notice.video.youtubeVideoId} title={`${notice.channelTitle}：${notice.video.title}`}><span className="status-dot" aria-hidden="true" />ライブ · {notice.channelTitle} · {notice.video.title}</span>
+    {notifications.length > 1 && <button className="admin-secondary notice-next" type="button" aria-label={`次のライブ通知（${index + 1}/${notifications.length}）`} disabled={opening} onClick={() => setIndex(current => (current + 1) % notifications.length)}>{index + 1}/{notifications.length}</button>}
+    <button className="admin-secondary" type="button" disabled={opening} onClick={() => void watch()} aria-label={`${notice.video.title}のライブを見る`}>{opening ? "確認中" : "見る"}</button>
+    <button className="admin-secondary" type="button" disabled={opening} aria-label={`${notice.video.title}の通知を閉じる`} onClick={() => onDismiss(notice.video.youtubeVideoId)}>×</button>
   </section>;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { CameraVideo } from "@/types/video";
 import { locationFromRow } from "@/lib/location";
 import type { LocationColumns } from "@/types/location";
@@ -10,11 +10,10 @@ import { WatchScreen } from "@/components/player/WatchScreen";
 type Row = { id: string; title: string; youtube_video_id: string } & LocationColumns;
 
 /** AdminConsoleの権限確認後にだけマウント。RLS付きの候補一覧を本人のセッションで読む。 */
-export function PrivateWatch({ supabase, userId, initialVideoId, liveVideo, onReturn }: { supabase: SupabaseClient; userId: string; initialVideoId?: string; liveVideo?: CameraVideo | null; onReturn?(): void }) {
+export function PrivateWatch({ supabase, userId, initialVideoId, liveVideo, notification, onReturn }: { supabase: SupabaseClient; userId: string; initialVideoId?: string; liveVideo?: CameraVideo | null; notification?: ReactNode; onReturn?(): void }) {
   const [result, setResult] = useState<{ videos: CameraVideo[]; error: boolean } | null>(null);
 
   useEffect(() => {
-    if (liveVideo) return;
     const controller = new AbortController();
     async function load() {
       const rows: Row[] = [];
@@ -29,12 +28,12 @@ export function PrivateWatch({ supabase, userId, initialVideoId, liveVideo, onRe
     }
     void load().catch(() => { if (!controller.signal.aborted) setResult({ videos: [], error: true }); });
     return () => controller.abort();
-  }, [supabase, userId, liveVideo]);
+  }, [supabase, userId]);
 
   if (liveVideo) return <>
     <div className="live-view-heading"><span>通知から開いたライブを固定表示中</span><button className="admin-secondary" type="button" onClick={onReturn}>景色の連続再生に戻る</button></div>
-    <WatchScreen videos={[liveVideo]} singleVideo />
+    <WatchScreen videos={[liveVideo]} informationVideos={result?.videos ?? []} notification={notification} singleVideo />
   </>;
   if (!result) return <section className="admin-card" role="status">登録動画を読み込んでいます…</section>;
-  return <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId} />;
+  return <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId} notification={notification} />;
 }

@@ -37,6 +37,8 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [saveNotice, setSaveNotice] = useState("");
+  const [formVersion, setFormVersion] = useState(0);
   const urlInput = useRef<HTMLInputElement>(null);
   const parsed = parseYouTubeUrl(url);
 
@@ -122,7 +124,7 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving || loading || changing) return;
-    setSaveError(""); setTouched(true);
+    setSaveError(""); setSaveNotice(""); setTouched(true);
     if (!parsed) { setSaveError("YouTubeの動画URLを入力してください。watch・youtu.be・live形式などに対応しています。"); urlInput.current?.focus(); return; }
     const form = event.currentTarget;
     const values = new FormData(form);
@@ -137,7 +139,12 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
         return;
       }
       form.reset(); setUrl(""); setNewTitle(""); setNewLocation(null); setTouched(false);
-      onWatch(parsed.videoId);
+      setFormVersion(version => version + 1);
+      setSaveNotice(`「${title}」を保存しました。続けて登録できます。`);
+      setShowDeleted(false);
+      try { const rows = await loadList(); if (rows) { setItems(rows); setListError(""); } }
+      catch { setListError("保存は完了しましたが、一覧を更新できませんでした。「更新」で再取得してください。"); }
+      requestAnimationFrame(() => urlInput.current?.focus());
     } catch { setSaveError("接続できませんでした。入力内容はそのままで再度お試しください。"); }
     finally { setSaving(false); }
   }
@@ -147,15 +154,16 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
       <section className="admin-card admin-add-card" aria-labelledby="add-title">
         <div className="admin-card-heading"><span className="admin-step">01 / ADD A VIEW</span><h2 id="add-title">動画URLを追加</h2><p>URLとタイトルを登録。地名から天気の地点も選べます。</p></div>
         {saveError && <p className="admin-error" role="alert">{saveError}</p>}
+        {saveNotice && <p className="admin-notice" role="status">{saveNotice}</p>}
         <form onSubmit={save} className="admin-form">
           <label htmlFor="camera-url">YouTube URL <span className="admin-required">必須</span></label>
           <input ref={urlInput} id="camera-url" name="url" type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://www.youtube.com/watch?v=…" required maxLength={2048} value={url} onChange={e => { setUrl(e.target.value); setSaveError(""); }} onBlur={() => setTouched(true)} disabled={busy} aria-invalid={touched && !!url && !parsed} aria-describedby="url-help" />
           <p className="admin-field-hint" id="url-help">{parsed ? `動画ID：${parsed.videoId} · URLの形式を確認しました` : touched && url ? "YouTubeの動画URLを確認してください。" : "通常の動画URL、短縮URL、/live/ 形式に対応。"}</p>
           <label htmlFor="camera-title">タイトル <span className="admin-required">必須</span></label>
           <input id="camera-title" name="title" type="text" required maxLength={100} placeholder="例：札幌すすきの ライブカメラ" value={newTitle} onChange={e => setNewTitle(e.target.value)} disabled={busy} />
-          <LocationPicker title={newTitle} value={newLocation} onChange={setNewLocation} disabled={busy} />
+          <LocationPicker key={formVersion} title={newTitle} value={newLocation} onChange={setNewLocation} disabled={busy} />
           <details className="personal-details"><summary>メモを追加（任意）</summary><div className="admin-form"><label htmlFor="camera-notes">メモ</label><textarea id="camera-notes" name="notes" rows={3} maxLength={1000} placeholder="場所や気づいたことなど" disabled={busy} /></div></details>
-          <button className="admin-primary" type="submit" disabled={saving || loading || changing}>{saving ? "保存しています…" : "保存して見る"}<span aria-hidden="true"> ＋</span></button>
+          <button className="admin-primary" type="submit" disabled={saving || loading || changing}>{saving ? "保存しています…" : "景色を登録"}<span aria-hidden="true"> ＋</span></button>
           <p className="admin-security-note">配信の実在・ライブ状態・埋め込み可否は未確認のまま保存されます。</p>
         </form>
       </section>

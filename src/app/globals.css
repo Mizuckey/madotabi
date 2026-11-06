@@ -145,6 +145,7 @@ h1 { font-size: 22px; font-weight: 400; letter-spacing: 2px; margin: 0; }
 .info-viewport { flex: 1; min-width: 0; overflow: hidden; }
 .info-track { display: flex; width: max-content; min-width: 200%; animation: scenery-ticker 48s linear infinite; }
 .info-copy { display: flex; align-items: center; flex: 1 0 auto; gap: 40px; padding: 0 40px 0 16px; white-space: nowrap; }
+.ticker-entry { display: inline-flex; align-items: center; gap: 14px; }
 .ticker-title { color: #d4e0d7; }
 .info-strip button { flex-shrink: 0; min-height: 36px; border: 0; border-left: 1px solid var(--border); background: #171e1a; color: #a8bfb0; font-size: 10px; padding: 0 12px; cursor: pointer; }
 .info-strip:hover .info-track, .info-strip:focus-within .info-track, .info-strip.is-paused .info-track { animation-play-state: paused; }
