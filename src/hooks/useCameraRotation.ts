@@ -1,19 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlaybackStatus } from "@/lib/youtube-player";
-import { DEFAULT_ROTATION_SECONDS, ROTATION_INTERVALS, nextVideoIndex, startRotationTimer, type RotationTimer } from "@/lib/rotation";
+import { DEFAULT_ROTATION_SECONDS, ROTATION_INTERVALS, nextPlayableIndex, startRotationTimer, type RotationTimer } from "@/lib/rotation";
 
 /** 親は動画一覧の変更時にkeyを変え、選択位置を新しい一覧へリセットする。 */
-export function useCameraRotation(count: number, initialIndex = 0) {
+export function useCameraRotation(count: number, initialIndex = 0, eligibleIndices?: number[]) {
+  const restricted = eligibleIndices !== undefined;
+  const availableKey = eligibleIndices?.join(",") ?? "";
+  const available = useMemo(() => restricted ? availableKey.split(",").filter(Boolean).map(Number).filter(index => Number.isInteger(index) && index >= 0 && index < count) : Array.from({ length: count }, (_, index) => index), [restricted, availableKey, count]);
   const [selection, setSelection] = useState({ index: initialIndex });
+  const index = nextPlayableIndex(selection.index, count, available, 1, true);
   const [automatic, setAutomatic] = useState(true);
   const [intervalSeconds, setIntervalSeconds] = useState<number>(DEFAULT_ROTATION_SECONDS);
   const remainingRef = useRef(DEFAULT_ROTATION_SECONDS * 1000);
   const timerRef = useRef<RotationTimer | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>("loading");
-  const enabled = automatic && count > 1;
-  const counting = enabled && playbackStatus === "playing";
+  const enabled = automatic && available.length > 1;
+  const counting = enabled && selection.index === index && playbackStatus === "playing";
 
   useEffect(() => {
     if (!counting) return;
@@ -23,7 +27,7 @@ export function useCameraRotation(count: number, initialIndex = 0) {
         timerRef.current = null;
         setPlaybackStatus("loading");
         remainingRef.current = intervalSeconds * 1000;
-        setSelection(current => ({ index: nextVideoIndex(current.index, count) }));
+        setSelection(current => ({ index: nextPlayableIndex(current.index, count, available) }));
       },
     });
     timerRef.current = timer;
@@ -34,7 +38,7 @@ export function useCameraRotation(count: number, initialIndex = 0) {
         timerRef.current = null;
       }
     };
-  }, [counting, intervalSeconds, selection, count]);
+  }, [counting, intervalSeconds, selection, count, available]);
 
   const resetClock = useCallback((durationMs: number) => {
     timerRef.current?.cancel();
@@ -43,22 +47,23 @@ export function useCameraRotation(count: number, initialIndex = 0) {
   }, []);
 
   const onPlaybackChange = useCallback((status: PlaybackStatus) => {
-    if (status !== "playing") resetClock(timerRef.current?.remaining() ?? remainingRef.current);
+    if (selection.index !== index) { resetClock(intervalSeconds * 1000); setSelection({ index }); }
+    else if (status !== "playing") resetClock(timerRef.current?.remaining() ?? remainingRef.current);
     setPlaybackStatus(status);
-  }, [resetClock]);
+  }, [resetClock, selection.index, index, intervalSeconds]);
 
   function select(index: number) {
-    if (!Number.isInteger(index) || index < 0 || index >= count) return;
+    if (!Number.isInteger(index) || !available.includes(index)) return;
     resetClock(intervalSeconds * 1000);
     if (index !== selection.index) setPlaybackStatus("loading");
     setSelection({ index });
   }
 
   function move(direction: 1 | -1) {
-    if (count < 2) return;
+    if (available.length < 2) return;
     resetClock(intervalSeconds * 1000);
     setPlaybackStatus("loading");
-    setSelection(current => ({ index: nextVideoIndex(current.index, count, direction) }));
+    setSelection({ index: nextPlayableIndex(index, count, available, direction) });
   }
 
   function changeInterval(seconds: number) {
@@ -68,7 +73,7 @@ export function useCameraRotation(count: number, initialIndex = 0) {
   }
 
   function toggleAutomatic() {
-    if (count < 2) return;
+    if (available.length < 2) return;
     if (automatic) {
       const remaining = timerRef.current?.remaining() ?? remainingRef.current;
       resetClock(remaining);
@@ -76,5 +81,5 @@ export function useCameraRotation(count: number, initialIndex = 0) {
     setAutomatic(!automatic);
   }
 
-  return { index: selection.index, automatic: enabled, counting, playbackStatus, onPlaybackChange, intervalSeconds, select, move, changeInterval, toggleAutomatic };
+  return { index, automatic: enabled, counting, playbackStatus, onPlaybackChange, intervalSeconds, select, move, changeInterval, toggleAutomatic };
 }

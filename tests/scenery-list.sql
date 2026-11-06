@@ -32,6 +32,8 @@ begin
   if not exists(select 1 from public.camera_submissions where id=test_id and deleted_at is null and position>max_position) then raise exception 'Insert must append'; end if;
   update public.camera_submissions set title='編集の検証', notes='更新したメモ' where id=first_id;
   if not exists(select 1 from public.camera_submissions where id=first_id and title='編集の検証' and notes='更新したメモ') then raise exception 'Metadata edit failed'; end if;
+  update public.camera_submissions set night_view=true where id=first_id;
+  if not exists(select 1 from public.camera_submissions where id=first_id and night_view) then raise exception 'Night view save failed'; end if;
   update public.camera_submissions set location_name='東京都 / 渋谷', latitude=35.6589, longitude=139.70665 where id=first_id;
   if not exists(select 1 from public.camera_submissions where id=first_id and location_name='東京都 / 渋谷' and latitude=35.6589 and longitude=139.70665) then raise exception 'Location edit failed'; end if;
   begin update public.camera_submissions set title='   ' where id=first_id; raise exception 'Blank title accepted'; exception when check_violation then null; end;

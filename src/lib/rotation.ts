@@ -1,6 +1,16 @@
 export const ROTATION_INTERVALS = [10, 20, 30, 40, 50, 60] as const;
 export const DEFAULT_ROTATION_SECONDS = 20;
 
+export function nextPlayableIndex(index: number, count: number, available: readonly number[], direction: 1 | -1 = 1, includeCurrent = false): number {
+  if (count <= 0 || !available.length) return 0;
+  const allowed = new Set(available);
+  for (let step = includeCurrent ? 0 : 1; step < count + (includeCurrent ? 0 : 1); step++) {
+    const candidate = ((index + step * direction) % count + count) % count;
+    if (allowed.has(candidate)) return candidate;
+  }
+  return 0;
+}
+
 export function nextVideoIndex(index: number, count: number, direction: 1 | -1 = 1): number {
   if (count <= 0) return 0;
   return ((index + direction) % count + count) % count;

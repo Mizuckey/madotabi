@@ -5,6 +5,10 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { LocationPicker } from "@/components/camera/LocationPicker";
 import { locationColumns, locationFromRow } from "@/lib/location";
 import type { CameraLocation, LocationColumns } from "@/types/location";
+import { useSceneryDrag } from "@/hooks/useSceneryDrag";
+import { reorderScenery } from "@/lib/scenery-order";
+import { useDaylight } from "@/hooks/useDaylight";
+import { solarDay, locationKey } from "@/lib/daylight";
 import { parseYouTubeUrl } from "@/lib/youtube";
 
 type Submission = {
@@ -12,12 +16,12 @@ type Submission = {
   youtube_video_id: string;
   youtube_url: string;
   title: string;
-  notes: string;
+  night_view: boolean;
   created_at: string;
   position: number;
   deleted_at: string | null;
 } & LocationColumns;
-const fields = "id,youtube_video_id,youtube_url,title,notes,created_at,position,deleted_at,location_name,latitude,longitude";
+const fields = "id,youtube_video_id,youtube_url,title,night_view,created_at,position,deleted_at,location_name,latitude,longitude";
 const pageSize = 100;
 
 export function SubmissionManager({ supabase, userId, onWatch }: { supabase: SupabaseClient; userId: string; onWatch(videoId: string): void }) {
@@ -25,13 +29,14 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   const [loading, setLoading] = useState(true);
   const [changing, setChanging] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [editing, setEditing] = useState<{ id: string; title: string; notes: string; location: CameraLocation | null } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; title: string; nightView: boolean; location: CameraLocation | null } | null>(null);
   const [editError, setEditError] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [actionError, setActionError] = useState("");
   const [message, setMessage] = useState("");
   const [listError, setListError] = useState("");
   const [newTitle, setNewTitle] = useState("");
+  const [newNightView, setNewNightView] = useState(false);
   const [newLocation, setNewLocation] = useState<CameraLocation | null>(null);
   const [url, setUrl] = useState("");
   const [touched, setTouched] = useState(false);
@@ -65,6 +70,17 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   const deleted = items.filter(item => item.deleted_at);
   const visible = showDeleted ? deleted : active;
   const busy = loading || saving || changing;
+  const daylight = useDaylight(active.map(item => ({ id: item.id, title: item.title, youtubeVideoId: item.youtube_video_id, location: locationFromRow(item), nightView: item.night_view })));
+  const drag = useSceneryDrag(active.map(item => item.id), busy || showDeleted || !!editing, reorder);
+  function sunlight(item: Submission) {
+    const location = locationFromRow(item);
+    if (!location) return item.night_view ? '夜景ON · 地点未登録でも再生' : '地点未登録 · 夜景OFFのため再生対象外';
+    const reading = daylight.readings[locationKey(location.latitude, location.longitude)];
+    const day = solarDay(reading, daylight.now);
+    if (!day) return `${item.night_view ? '夜景ON · ' : ''}${reading?.error ? '日照時刻を取得できません' : '日照時刻を確認中…'}`;
+    const format = (time: number) => new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(time);
+    return `日の出 ${format(day.sunrise)} · 日の入り ${format(day.sunset)} · 夜景${item.night_view ? 'ON' : 'OFF'}`;
+  }
 
   async function reload() {
     setLoading(true);
@@ -73,11 +89,9 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
     finally { setLoading(false); }
   }
 
-  async function reorder(index: number, direction: -1 | 1) {
-    const target = index + direction;
-    if (busy || target < 0 || target >= active.length) return;
-    const ids = active.map(item => item.id);
-    [ids[index], ids[target]] = [ids[target], ids[index]];
+  async function reorder(sourceId: string, targetId: string) {
+    if (busy || sourceId === targetId) return;
+    const ids = reorderScenery(active.map(item => item.id), sourceId, targetId);
     setChanging(true); setActionError(""); setMessage("");
     try {
       const { error } = await supabase.rpc("reorder_camera_submissions", { ordered_ids: ids });
@@ -107,12 +121,11 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
     event.preventDefault();
     if (!editing || busy) return;
     const title = editing.title.trim();
-    const notes = editing.notes.trim();
     if (!title) { setEditError("タイトルを入力してください。"); return; }
-    if (title.length > 100 || notes.length > 1000) { setEditError("タイトルは100文字、メモは1000文字以内で入力してください。"); return; }
+    if (title.length > 100) { setEditError("タイトルは100文字以内で入力してください。"); return; }
     setChanging(true); setEditError(""); setMessage("");
     try {
-      const { data, error } = await supabase.from("camera_submissions").update({ title, notes, ...locationColumns(editing.location) }).eq("id", editing.id).eq("created_by", userId).select(fields).single<Submission>();
+      const { data, error } = await supabase.from("camera_submissions").update({ title, night_view: editing.nightView, ...locationColumns(editing.location) }).eq("id", editing.id).eq("created_by", userId).select(fields).single<Submission>();
       if (error || !data) throw new Error("Edit failed");
       setItems(current => current.map(item => item.id === data.id ? data : item));
       setEditing(null);
@@ -129,16 +142,15 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
     const form = event.currentTarget;
     const values = new FormData(form);
     const title = String(values.get("title") ?? "").trim();
-    const notes = String(values.get("notes") ?? "").trim();
     if (!title || title.length > 100) { setSaveError("タイトルを1〜100文字で入力してください。"); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from("camera_submissions").insert({ youtube_video_id: parsed.videoId, youtube_url: parsed.canonicalUrl, title, notes, ...locationColumns(newLocation), created_by: userId });
+      const { error } = await supabase.from("camera_submissions").insert({ youtube_video_id: parsed.videoId, youtube_url: parsed.canonicalUrl, title, night_view: newNightView, ...locationColumns(newLocation), created_by: userId });
       if (error) {
         setSaveError(error.code === "23505" ? "この動画は登録済みです。削除した場合は「削除した景色」から戻せます。" : "保存できませんでした。入力内容・通信状況・ログイン状態を確認して再度お試しください。");
         return;
       }
-      form.reset(); setUrl(""); setNewTitle(""); setNewLocation(null); setTouched(false);
+      form.reset(); setUrl(""); setNewTitle(""); setNewLocation(null); setNewNightView(false); setTouched(false);
       setFormVersion(version => version + 1);
       setSaveNotice(`「${title}」を保存しました。続けて登録できます。`);
       setShowDeleted(false);
@@ -162,7 +174,8 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
           <label htmlFor="camera-title">タイトル <span className="admin-required">必須</span></label>
           <input id="camera-title" name="title" type="text" required maxLength={100} placeholder="例：札幌すすきの ライブカメラ" value={newTitle} onChange={e => setNewTitle(e.target.value)} disabled={busy} />
           <LocationPicker key={formVersion} title={newTitle} value={newLocation} onChange={setNewLocation} disabled={busy} />
-          <details className="personal-details"><summary>メモを追加（任意）</summary><div className="admin-form"><label htmlFor="camera-notes">メモ</label><textarea id="camera-notes" name="notes" rows={3} maxLength={1000} placeholder="場所や気づいたことなど" disabled={busy} /></div></details>
+          <label className="night-view-option"><input type="checkbox" checked={newNightView} disabled={busy} onChange={event => setNewNightView(event.target.checked)} />夜景ON（日没後も再生）</label>
+          <p className="admin-field-hint">夜景OFFは、登録地点の日の出〜日の入りだけ再生します。地点未登録・日照時刻が不明な場合も再生対象外です。</p>
           <button className="admin-primary" type="submit" disabled={saving || loading || changing}>{saving ? "保存しています…" : "景色を登録"}<span aria-hidden="true"> ＋</span></button>
           <p className="admin-security-note">配信の実在・ライブ状態・埋め込み可否は未確認のまま保存されます。</p>
         </form>
@@ -176,29 +189,27 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
         {loading ? <div className="admin-card admin-empty" role="status">登録した動画を読み込んでいます…</div> : visible.length === 0 && !listError ? (
           <div className="admin-card admin-empty"><span className="admin-empty-mark" aria-hidden="true">＋</span><h3>{showDeleted ? "削除した景色はありません" : "次に眺めたい景色を、ひとつ。"}</h3><p>{showDeleted ? "削除した景色はここからリストに戻せます。" : "URLを追加すると、ここに景色が並びます。"}</p></div>
         ) : (
-          <ul className="admin-items">{visible.map((item, index) => (
-            <li key={item.id} className="admin-item"><div className="admin-item-top"><span className="admin-item-label">{showDeleted ? "削除済み" : `${index + 1} 番目`}</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3 title={item.title || "タイトル未設定"}>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.location_name && <p className="scenery-location">天気の地点：{item.location_name}</p>}{item.notes && <p className="admin-item-notes" title={item.notes}>{item.notes}</p>}
+          <><p className="admin-field-hint" id="reorder-help">左のハンドルをドラッグして並び替えます。キーボードはSpaceでつかみ、上下キーで移動、Enterで保存できます。</p><p className="sr-only" role="status">{drag.announcement}</p><ul className="admin-items">{visible.map((item, index) => (
+            <li key={item.id} className="admin-item" data-scenery-id={item.id} data-dragging={drag.source === item.id} data-drop-target={drag.target === item.id && drag.source !== item.id}><div className="admin-item-top">{!showDeleted && <button className="scenery-drag-handle" type="button" disabled={busy || !!editing} aria-label={`${item.title}をドラッグして並び替え`} aria-describedby="reorder-help" {...drag.handles(item.id)}><svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true"><path d="M5 3h1m4 0h1M5 9h1m4 0h1M5 15h1m4 0h1" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg></button>}<span className="admin-item-label">{showDeleted ? "削除済み" : `${index + 1} 番目`}</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3 title={item.title || "タイトル未設定"}>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.location_name && <p className="scenery-location">天気の地点：{item.location_name}</p>}<p className="scenery-sunlight">{sunlight(item)}</p>
               <div className="admin-video-actions">
-                <button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing({ id: item.id, title: item.title, notes: item.notes, location: locationFromRow(item) }); setEditError(""); setConfirmDelete(null); }}>編集</button>
+                <button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing({ id: item.id, title: item.title, nightView: item.night_view, location: locationFromRow(item) }); setEditError(""); setConfirmDelete(null); }}>編集</button>
                 {showDeleted ? <button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, false)}>リストに戻す</button> : <>
                   <button className="admin-secondary" type="button" disabled={busy} onClick={() => onWatch(item.youtube_video_id)}>この景色を見る →</button>
-                  <button className="admin-secondary" type="button" disabled={busy || index === 0} aria-label={`${item.title || "この景色"}を上へ`} onClick={() => reorder(index, -1)}>↑ 上へ</button>
-                  <button className="admin-secondary" type="button" disabled={busy || index === active.length - 1} aria-label={`${item.title || "この景色"}を下へ`} onClick={() => reorder(index, 1)}>↓ 下へ</button>
                   <button className="admin-text-button" type="button" disabled={busy} onClick={() => { setConfirmDelete(item.id); setEditing(null); }}>削除</button>
                 </>}
               </div>
               {editing?.id === item.id && <form className="admin-form scenery-edit-form" onSubmit={saveEdit} aria-label="景色を編集">
                 <label htmlFor={`edit-title-${item.id}`}>タイトル</label><input id={`edit-title-${item.id}`} required value={editing.title} maxLength={100} disabled={busy} onChange={e => setEditing({ ...editing, title: e.target.value })} />
                 <LocationPicker title={editing.title} value={editing.location} onChange={location => setEditing({ ...editing, location })} disabled={busy} />
-                <label htmlFor={`edit-notes-${item.id}`}>メモ</label><textarea id={`edit-notes-${item.id}`} value={editing.notes} rows={3} maxLength={1000} disabled={busy} onChange={e => setEditing({ ...editing, notes: e.target.value })} />
+                <label className="night-view-option"><input type="checkbox" checked={editing.nightView} disabled={busy} onChange={event => setEditing({ ...editing, nightView: event.target.checked })} />夜景ON（日没後も再生）</label>
                 {editError && <p className="admin-error" role="alert">{editError}</p>}
                 <div className="admin-video-actions"><button className="admin-primary" type="submit" disabled={busy}>{changing ? "保存中…" : "変更を保存"}</button><button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing(null); setEditError(""); }}>キャンセル</button></div>
               </form>}
               {confirmDelete === item.id && !showDeleted && <div className="scenery-delete-confirm" role="group" aria-label="景色の削除確認"><p>この景色を再生リストから削除しますか？ 後から戻せます。</p><button className="admin-secondary" type="button" disabled={busy} onClick={() => setConfirmDelete(null)}>残す</button><button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, true)}>削除する</button></div>}
             </li>
-          ))}</ul>
+          ))}</ul></>
         )}
-        <p className="admin-library-note">上から順番に再生します。並び順と削除状態は保存され、削除した景色は後から戻せます。</p>
+        <p className="admin-library-note">上から順番に、日照時刻と夜景設定に合う景色を再生します。並び順は保存され、削除した景色は後から戻せます。</p>
       </section>
     </div>
   );

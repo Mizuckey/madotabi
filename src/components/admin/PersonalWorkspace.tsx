@@ -22,9 +22,10 @@ export function PersonalWorkspace({ supabase, userId, initialView }: { supabase:
   }
   async function watchLive(videoId: string) {
     const video = await monitor.verify(videoId);
-    if (video) { setLiveVideo(video); setView("watch"); monitor.dismiss(videoId); }
+    if (video) { setLiveVideo(video); setView("watch"); }
   }
-  const notification = monitor.notifications.length ? <LiveNotifications notifications={monitor.notifications} onWatch={watchLive} onDismiss={monitor.dismiss} /> : undefined;
+  const notices = monitor.notifications.filter(notice => notice.video.youtubeVideoId !== liveVideo?.youtubeVideoId);
+  const notification = notices.length ? <LiveNotifications notifications={notices} onWatch={watchLive} onDismiss={monitor.dismiss} /> : undefined;
   return <div className="personal-workspace">
     <nav className="personal-navigation" aria-label="画面切替">
       <button type="button" className="admin-secondary" aria-pressed={view === "watch"} onClick={() => watch()}>景色を見る</button>
