@@ -19,15 +19,21 @@ export function locationQueryFromTitle(title: string): string {
     .split(/[|｜/／]/)[0].replace(/^[\s・:：-]+|[\s・:：-]+$/g, "").replace(/\s+/g, " ").slice(0, 100);
 }
 export function locationSearchTerms(query: string): string[] {
-  const text = query.trim();
+  const text = query.normalize("NFKC").trim().replace(/^(.{2,3}[都道府県])\s*[/／]\s*(.+)$/, "$2, $1");
   if (text.length < 2) return [];
-  if (text.includes(",")) return [text];
-  const pref = text.match(/^(.{2,3}[都道府県])\s*(.+)$/);
-  const place = pref ? pref[2] : text;
+  const [name, qualifier] = text.split(",").map(value => value.trim());
+  const pref = !qualifier ? name.match(/^(.{2,3}[都道府県])\s*(.+)$/) : null;
+  const place = pref ? pref[2] : name;
+  const area = qualifier || pref?.[1];
   const base = place.match(/^(.+?[市区町村])(?:\s|[^市区町村]|$)/)?.[1] ?? place;
   const word = base.split(/\s/)[0];
-  const candidates = [base, base.replace(/[市区町村]$/, ""), /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(word) ? word.slice(0, 2) : word];
-  return [...new Set(candidates.filter(value => value.length >= 2).map(value => pref ? `${value}, ${pref[1]}` : value))].slice(0, 3);
+  const candidates = [base, base.replace(/[市区町村]$/, "")];
+  if (!/[市区町村]$/.test(base) && /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(word)) {
+    // Open-Meteo requires exact matches for two characters: 札幌 does not match 札幌市.
+    const short = word.slice(0, 2);
+    candidates.push(short, `${short}市`, word.slice(0, 3));
+  }
+  return [...new Set(candidates.filter(value => value.length >= 2).map(value => area ? `${value}, ${area}` : value))].slice(0, 5);
 }
 export function parseLocations(body: unknown): CameraLocation[] {
   if (!body || typeof body !== "object") throw new Error("Invalid location response");

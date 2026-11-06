@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {locationQueryFromTitle,locationSearchTerms,parseLocations,locationFromRow,locationColumns,validCoordinates} from '../src/lib/location.ts';
+import {locationQueryFromTitle,locationSearchTerms,parseLocations,locationFromRow,locationColumns,validCoordinates,searchLocations} from '../src/lib/location.ts';
 import {weatherUrl,weatherLabel,parseWeather,loadWeather} from '../src/lib/weather.ts';
 
 test('タイトルの地名を残し、ライブ・解像度などを検索語から外す',()=>{
@@ -9,11 +9,24 @@ test('タイトルの地名を残し、ライブ・解像度などを検索語�
  assert.equal(locationQueryFromTitle('渋谷スクランブル交差点 | Tokyo Live Camera'),'渋谷スクランブル交差点');
 });
 test('長い地名は段階的に検索し、都道府県指定は維持する',()=>{
- assert.deepEqual(locationSearchTerms('渋谷スクランブル交差点'),['渋谷スクランブル交差点','渋谷']);
+ assert.deepEqual(locationSearchTerms('渋谷スクランブル交差点'),['渋谷スクランブル交差点','渋谷','渋谷市','渋谷ス']);
  assert.deepEqual(locationSearchTerms('北海道札幌市すすきの'),['札幌市, 北海道','札幌, 北海道']);
  assert.deepEqual(locationSearchTerms('京都府京都市'),['京都市, 京都府','京都, 京都府']);
- assert.deepEqual(locationSearchTerms('渋谷, 東京都'),['渋谷, 東京都']);
+ assert.deepEqual(locationSearchTerms('渋谷, 東京都'),['渋谷, 東京都','渋谷市, 東京都']);
+ assert.deepEqual(locationSearchTerms('札幌'),['札幌','札幌市']);
+ assert.deepEqual(locationSearchTerms('札幌, 北海道'),['札幌, 北海道','札幌市, 北海道']);
+ assert.deepEqual(locationSearchTerms('北海道 / 札幌市'),['札幌市, 北海道','札幌, 北海道']);
  assert.deepEqual(locationSearchTerms('a'),[]);
+});
+test('2文字の地名で空の場合は市を補って検索し、候補を返す',async t=>{
+ const calls=[];
+ t.mock.method(globalThis,'fetch',async url=>{
+  const name=new URL(url).searchParams.get('name');calls.push(name);
+  return Response.json(name==='札幌市'?{results:[{country_code:'JP',name:'札幌市',admin1:'北海道',latitude:43.061,longitude:141.354}]}:{});
+ });
+ const result=await searchLocations('札幌',new AbortController().signal);
+ assert.deepEqual(calls,['札幌','札幌市']);
+ assert.equal(result[0].name,'北海道 / 札幌市');
 });
 test('地点検索は日本の有効な候補だけを重複なく返す',()=>{
  const candidate={country_code:'JP',name:'渋谷',admin1:'東京都',latitude:35.6589,longitude:139.70665};
