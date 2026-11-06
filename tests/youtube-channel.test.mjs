@@ -88,3 +88,18 @@ test('checks only when visible and removes timers/listeners when leaving the wor
   stop(); assert.equal(cleared, true);
   page.visibilityState = 'visible'; page.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus')); tick(); assert.equal(checks, 3);
 });
+
+test('default browser timers retain their global receiver', () => {
+  const previous = { document: globalThis.document, window: globalThis.window, setInterval: globalThis.setInterval, clearInterval: globalThis.clearInterval };
+  const page = new EventTarget(); page.visibilityState = 'visible';
+  let cleared = false;
+  globalThis.document = page; globalThis.window = new EventTarget();
+  globalThis.setInterval = function () { assert.equal(this, globalThis); return 1; };
+  globalThis.clearInterval = function () { assert.equal(this, globalThis); cleared = true; };
+  try { const stop = startVisibleChannelChecks(() => {}); stop(); assert.equal(cleared, true); }
+  finally {
+    globalThis.setInterval = previous.setInterval; globalThis.clearInterval = previous.clearInterval;
+    if (previous.document === undefined) delete globalThis.document; else globalThis.document = previous.document;
+    if (previous.window === undefined) delete globalThis.window; else globalThis.window = previous.window;
+  }
+});

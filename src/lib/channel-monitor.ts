@@ -4,7 +4,7 @@ export function startVisibleChannelChecks(check: () => void, environment: {
   window: Pick<Window, "addEventListener" | "removeEventListener">;
   setInterval: typeof setInterval;
   clearInterval: typeof clearInterval;
-} = { page: document, window, setInterval, clearInterval }) {
+} = { page: document, window, setInterval: setInterval.bind(globalThis), clearInterval: clearInterval.bind(globalThis) }) {
   let stopped = false;
   const run = () => { if (!stopped && environment.page.visibilityState === "visible") check(); };
   run();
