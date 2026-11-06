@@ -8,6 +8,7 @@ import { useChannelMonitor } from "@/hooks/useChannelMonitor";
 import { ChannelManager } from "@/components/camera/ChannelManager";
 import { LiveNotifications } from "@/components/camera/LiveNotifications";
 import type { CameraVideo } from "@/types/video";
+import { BgmMenu } from "@/components/bgm/BgmMenu";
 
 export function PersonalWorkspace({ supabase, userId, initialView }: { supabase: SupabaseClient; userId: string; initialView: "watch" | "add" }) {
   const [view, setView] = useState(initialView);
@@ -27,9 +28,10 @@ export function PersonalWorkspace({ supabase, userId, initialView }: { supabase:
   const notices = monitor.notifications.filter(notice => notice.video.youtubeVideoId !== liveVideo?.youtubeVideoId);
   const notification = notices.length ? <LiveNotifications notifications={notices} onWatch={watchLive} onDismiss={monitor.dismiss} /> : undefined;
   return <div className="personal-workspace">
+    <BgmMenu supabase={supabase} userId={userId} />
     <nav className="personal-navigation" aria-label="画面切替">
-      <button type="button" className="admin-secondary" aria-pressed={view === "watch"} onClick={() => watch()}>景色を見る</button>
-      <button type="button" className="admin-secondary" aria-pressed={view === "add"} onClick={() => setView("add")}>景色リスト</button>
+      <button type="button" className="admin-secondary" aria-label="景色を見る" aria-pressed={view === "watch"} onClick={() => watch()}><span className="wide-nav-label">景色を見る</span><span className="compact-nav-label">見る</span></button>
+      <button type="button" className="admin-secondary" aria-label="景色リスト" aria-pressed={view === "add"} onClick={() => setView("add")}><span className="wide-nav-label">景色リスト</span><span className="compact-nav-label">リスト</span></button>
     </nav>
     {view === "watch" && <>
       {monitor.error && <p className="channel-monitor-error" role="status">{monitor.error}<button className="admin-secondary" type="button" disabled={monitor.busy} onClick={() => void monitor.refresh(true)}>再確認</button></p>}

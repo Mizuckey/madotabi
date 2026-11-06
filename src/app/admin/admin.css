@@ -251,3 +251,34 @@
 .admin-form .night-view-option { display: flex; align-items: center; gap: 10px; }
 .admin-form .night-view-option input { width: 17px; min-height: 17px; height: 17px; padding: 0; accent-color: #a5bcb0; }
 .empty-live-notice { flex-shrink: 0; width: min(100%, 600px); }
+
+/* BGM is a separate external-link picker; opening it does not remount the video. */
+.bgm-trigger { position: absolute !important; top: calc(2px + env(safe-area-inset-top)); right: calc(88px + max(16px, env(safe-area-inset-right))); min-width: 64px; min-height: 44px; padding: 8px !important; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.compact-nav-label { display: none; }
+.bgm-dialog { position: fixed; margin: auto; inset: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); padding: 20px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--background); overflow: auto; overscroll-behavior: contain; }
+.bgm-dialog::backdrop { background: #070b09b8; }
+.bgm-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bgm-dialog-heading h2 { margin: 0; font-size: 18px; font-weight: 400; }
+.bgm-add-form { margin: 16px 0; }
+.bgm-add-form > button { align-self: start; }
+.bgm-current { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding: 6px 0; margin: 10px 0; font-size: 12px; }
+.bgm-current > span { min-width: 0; overflow-wrap: anywhere; }
+.bgm-current button { flex-shrink: 0; }
+.bgm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.bgm-list > li { border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; min-width: 0; }
+.bgm-list > li[data-bgm-playing="true"] { border-color: #719782; }
+.bgm-link-main { min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+.bgm-link-main a { color: #c1d7c9; text-underline-offset: 4px; line-height: 1.8; }
+.bgm-link-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 10px; margin-top: 3px; }
+.bgm-playing-label { margin-left: 10px; color: #b8d2c1; font-size: 10px; white-space: nowrap; }
+.bgm-row-actions { display: flex; gap: 10px; margin-top: 3px; }
+.bgm-row-actions button { padding: 8px 2px; }
+.bgm-edit-form { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 10px; }
+@media (min-width: 1100px) { .personal-shell .watch-toolbar { right: calc(174px + max(16px, env(safe-area-inset-right))); } }
+@media (max-width: 600px) {
+  .personal-shell .personal-navigation { right: calc(122px + max(8px, env(safe-area-inset-right))); }
+  .wide-nav-label { display: none; }
+  .compact-nav-label { display: inline; }
+  .bgm-trigger { right: calc(64px + max(8px, env(safe-area-inset-right))); min-width: 48px; font-size: 10px; }
+  .bgm-dialog { width: calc(100vw - 16px); padding: 14px; max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+}
