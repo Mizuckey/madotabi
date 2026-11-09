@@ -17,7 +17,7 @@ export function BgmMenu({supabase,userId}:{supabase:SupabaseClient;userId:string
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
   const [showArchived,setShowArchived]=useState(false);
-  const [editing,setEditing]=useState<{id:string;title:string}|null>(null);
+  const [editing,setEditing]=useState<{id:string;title:string;url:string}|null>(null);
   const [selectedId,setSelectedId]=useState<string|null>(()=>{
     if(typeof window==='undefined')return null;
     try{return readBgmSelection(window.sessionStorage,userId)}catch{return null}
@@ -66,19 +66,22 @@ export function BgmMenu({supabase,userId}:{supabase:SupabaseClient;userId:string
     }catch{setError('保存結果を確認できませんでした。更新して確認してください。')}
     finally{setSaving(false)}
   }
-  async function update(item:BgmLink,patch:{archived?:boolean;title?:string}){
+  async function update(item:BgmLink,patch:{archived?:boolean;title?:string;url?:string}){
     if(busy)return;
+    const urlChanged=patch.url!==undefined&&patch.url!==item.url;
     setSaving(true);setError('');setNotice('');
     try{
       const {data,error}=await supabase.from('bgm_links').update(patch).eq('id',item.id).eq('created_by',userId).select('id,title,url,archived').single<BgmLink>();
+      if(error?.code==='23505'){setError('このURLは登録済みです。非表示にしたBGMも確認してください。');return}
       if(error||!data)throw new Error('BGM update failed');
       setLinks(current=>current.map(row=>row.id===data.id?data:row));setEditing(null);
-      if(data.archived&&selectedId===data.id)select(null);
+      if((data.archived||urlChanged)&&selectedId===data.id)select(null);
+      setNotice(urlChanged?'リンクを変更しました。新しいリンクを開くと再生中の表示になります。':'変更を保存しました。');
     }catch{setError('変更結果を確認できませんでした。更新して確認してください。')}
     finally{setSaving(false)}
   }
   return <>
-    <button className="bgm-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} aria-label={current?`BGM（再生中：${current.title}）`:'BGM'} title={current?`再生中：${current.title}`:'BGMリンクを開く'} onClick={()=>{dialog.current?.showModal();setOpen(true)}}>BGM{current&&<span className="status-dot" aria-hidden="true"/>}</button>
+    <button className="bgm-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} aria-label={current?`BGM（再生中：${current.title}）`:'BGM'} title={current?`再生中：${current.title}`:'BGMリンクを開く'} onClick={()=>{dialog.current?.showModal();setOpen(true)}}><span className="bgm-trigger-title">{current?.title??'BGM'}</span>{current&&<span className="status-dot" aria-hidden="true"/>}</button>
     <dialog className="bgm-dialog" ref={dialog} aria-labelledby="bgm-heading" onClose={()=>setOpen(false)}>
       <div className="bgm-dialog-heading"><h2 id="bgm-heading">BGM</h2><button className="admin-secondary" type="button" onClick={()=>dialog.current?.close()}>閉じる</button></div>
       <p className="admin-field-hint">外部タブで開きます。「再生中」は最後に開いたリンクの表示で、外部サイトの再生・停止とは連動しません。</p>
@@ -94,8 +97,8 @@ export function BgmMenu({supabase,userId}:{supabase:SupabaseClient;userId:string
         const safe=parseBgmUrl(item.url);
         return <li key={item.id} data-bgm-playing={current?.id===item.id}>
           <div className="bgm-link-main">{!item.archived&&safe?<a href={safe.url} target="_blank" rel="noopener noreferrer" onClick={()=>select(item.id)} onAuxClick={event=>{if(event.button===1)select(item.id)}}>{item.title} ↗</a>:<span>{item.title}</span>}{current?.id===item.id&&<span className="bgm-playing-label">再生中</span>}<small>{item.url}</small></div>
-          <div className="bgm-row-actions">{item.archived?<button className="admin-secondary" type="button" disabled={busy} onClick={()=>void update(item,{archived:false})}>戻す</button>:<><button className="admin-secondary" type="button" disabled={busy} onClick={()=>setEditing({id:item.id,title:item.title})}>名前を編集</button><button className="admin-secondary" type="button" disabled={busy} onClick={()=>void update(item,{archived:true})}>非表示</button></>}</div>
-          {editing?.id===item.id&&<form className="admin-form bgm-edit-form" onSubmit={event=>{event.preventDefault();const name=editing.title.trim();if(!name){setError('名前を入力してください。');return}void update(item,{title:name})}}><label htmlFor={`bgm-edit-${item.id}`}>名前</label><input id={`bgm-edit-${item.id}`} required maxLength={100} value={editing.title} disabled={busy} onChange={event=>setEditing({...editing,title:event.target.value})}/><div><button className="admin-secondary" type="submit" disabled={busy}>保存</button><button className="admin-secondary" type="button" disabled={busy} onClick={()=>setEditing(null)}>キャンセル</button></div></form>}
+          <div className="bgm-row-actions">{item.archived?<button className="admin-secondary" type="button" disabled={busy} onClick={()=>void update(item,{archived:false})}>戻す</button>:<><button className="admin-secondary" type="button" disabled={busy} onClick={()=>setEditing({id:item.id,title:item.title,url:item.url})}>編集</button><button className="admin-secondary" type="button" disabled={busy} onClick={()=>void update(item,{archived:true})}>非表示</button></>}</div>
+          {editing?.id===item.id&&<form className="admin-form bgm-edit-form" onSubmit={event=>{event.preventDefault();const name=editing.title.trim();if(!name){setError('名前を入力してください。');return}const parsed=parseBgmUrl(editing.url);if(!parsed){setError('HTTPSのBGMリンクを入力してください。');return}void update(item,{title:name,url:parsed.url})}}><label htmlFor={`bgm-edit-${item.id}`}>名前</label><input id={`bgm-edit-${item.id}`} required maxLength={100} value={editing.title} disabled={busy} onChange={event=>setEditing({...editing,title:event.target.value})}/><label htmlFor={`bgm-edit-url-${item.id}`}>BGMのURL</label><input id={`bgm-edit-url-${item.id}`} type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} required maxLength={2048} value={editing.url} disabled={busy} onChange={event=>setEditing({...editing,url:event.target.value})}/><div><button className="admin-secondary" type="submit" disabled={busy}>保存</button><button className="admin-secondary" type="button" disabled={busy} onClick={()=>setEditing(null)}>キャンセル</button></div></form>}
         </li>;
       })}</ul>}
     </dialog>

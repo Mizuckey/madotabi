@@ -12,8 +12,11 @@ begin
  begin insert into public.bgm_links(title,url) values('Duplicate',test_url);raise exception 'Duplicate accepted';exception when unique_violation then null;end;
  begin insert into public.bgm_links(title,url) values('   ',test_url||'empty');raise exception 'Blank title accepted';exception when check_violation then null;end;
  begin insert into public.bgm_links(title,url) values('Unsafe','javascript:alert(1)');raise exception 'Unsafe URL accepted';exception when check_violation then null;end;
- begin update public.bgm_links set url='https://example.org/' where id=item_id;exception when insufficient_privilege then denied:=true;end;
- if not denied then raise exception 'URL update granted';end if;
+ update public.bgm_links set url=test_url||'edited' where id=item_id;
+ if not exists(select 1 from public.bgm_links where id=item_id and url=test_url||'edited') then raise exception 'URL update failed';end if;
+ begin update public.bgm_links set url='javascript:alert(1)' where id=item_id;raise exception 'Unsafe URL edit accepted';exception when check_violation then null;end;
+ begin update public.bgm_links set created_by='00000000-0000-0000-0000-000000000001' where id=item_id;exception when insufficient_privilege then denied:=true;end;
+ if not denied then raise exception 'Owner reassignment granted';end if;
 end $$;
 rollback;
 begin;
