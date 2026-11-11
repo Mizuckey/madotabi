@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
 import type { PlaybackStatus } from "@/lib/youtube-player";
 import type { CameraVideo } from "@/types/video";
 import { CameraPlayer } from "./CameraPlayer";
@@ -9,11 +9,11 @@ import { InfoTicker } from "./InfoTicker";
 import { useCameraRotation } from "@/hooks/useCameraRotation";
 import { ROTATION_INTERVALS } from "@/lib/rotation";
 import { useDaylight } from "@/hooks/useDaylight";
-import { canPlayScenery } from "@/lib/daylight";
+import { canPlayScenery, locationKey } from "@/lib/daylight";
 
-type Props = { videos: CameraVideo[]; loadError?: boolean; singleVideo?: boolean; initialVideoId?: string; informationVideos?: CameraVideo[]; notification?: ReactNode };
+type Props = { videos: CameraVideo[]; loadError?: boolean; singleVideo?: boolean; initialVideoId?: string; onVideoChange?(videoId: string): void; informationVideos?: CameraVideo[]; notification?: ReactNode };
 
-export function WatchScreen({ videos, loadError = false, singleVideo = false, initialVideoId, informationVideos, notification }: Props) {
+export function WatchScreen({ videos, loadError = false, singleVideo = false, initialVideoId, onVideoChange, informationVideos, notification }: Props) {
   const daylight = useDaylight(singleVideo ? [] : videos);
   const eligibleIndices = videos.flatMap((video, index) => singleVideo || canPlayScenery(video, daylight.readings, daylight.now) ? [index] : []);
   if (!videos.length) return (
@@ -24,13 +24,24 @@ export function WatchScreen({ videos, loadError = false, singleVideo = false, in
     </section>{notification && <div className="empty-live-notice">{notification}</div>}</div>
   );
 
+  const preferredVideo = videos.find(video => video.youtubeVideoId === initialVideoId);
+  const location = preferredVideo?.location;
+  if (!singleVideo && preferredVideo && !preferredVideo.nightView && location &&
+      !daylight.readings[locationKey(location.latitude, location.longitude)]) {
+    return <section className="catalog-empty" role="status">前回の景色の再生条件を確認しています…</section>;
+  }
+
   if (!eligibleIndices.length) return <div className="watch-screen"><section className="catalog-empty"><h2>現在、連続再生できる景色がありません</h2><p>夜景OFFの景色は、登録地点の日の出から日の入りまで再生します。地点未登録・日照時刻の取得中や取得失敗も対象外です。</p><p>日中になれば自動で再開します。日没後も流したい景色は「夜景ON」にしてください。</p><Link className="watch-home-link" href="/?view=add">景色リストで設定する →</Link></section>{notification && <div className="empty-live-notice">{notification}</div>}<InfoTicker videos={informationVideos ?? videos} /></div>;
-  return <PlaylistScreen key={JSON.stringify(videos.map(video => video.id))} videos={videos} eligibleIndices={eligibleIndices} singleVideo={singleVideo} initialVideoId={initialVideoId} informationVideos={informationVideos} notification={notification} />;
+  return <PlaylistScreen key={JSON.stringify(videos.map(video => video.id))} videos={videos} eligibleIndices={eligibleIndices} singleVideo={singleVideo} initialVideoId={initialVideoId} onVideoChange={onVideoChange} informationVideos={informationVideos} notification={notification} />;
 }
 
-function PlaylistScreen({ videos, eligibleIndices, singleVideo, initialVideoId, informationVideos, notification }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId" | "informationVideos" | "notification"> & { eligibleIndices: number[] }) {
+function PlaylistScreen({ videos, eligibleIndices, singleVideo, initialVideoId, onVideoChange, informationVideos, notification }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId" | "onVideoChange" | "informationVideos" | "notification"> & { eligibleIndices: number[] }) {
   const rotation = useCameraRotation(videos.length, Math.max(0, videos.findIndex(video => video.youtubeVideoId === initialVideoId)), eligibleIndices);
   const video = videos[rotation.index];
+  useEffect(() => {
+    if (rotation.visible && !document.hidden) onVideoChange?.(video.youtubeVideoId);
+  }, [rotation.visible, video.youtubeVideoId, onVideoChange]);
+
   const onPlaybackChange = rotation.onPlaybackChange;
   const reportPlayback = useCallback((videoId: string, status: PlaybackStatus) => {
     if (videoId === video.youtubeVideoId) onPlaybackChange(status);

@@ -1,7 +1,7 @@
 "use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { PrivateWatch } from "./PrivateWatch";
 import { SubmissionManager } from "./SubmissionManager";
 import { useChannelMonitor } from "@/hooks/useChannelMonitor";
@@ -12,13 +12,24 @@ import { BgmMenu } from "@/components/bgm/BgmMenu";
 
 export function PersonalWorkspace({ supabase, userId, initialView }: { supabase: SupabaseClient; userId: string; initialView: "watch" | "add" }) {
   const [view, setView] = useState(initialView);
-  const [initialVideoId, setInitialVideoId] = useState<string>();
+  const playbackKey = `madotabi:last-scenery:${userId}`;
+  const [initialVideoId, setInitialVideoId] = useState<string | undefined>(() => {
+    try { return window.localStorage.getItem(playbackKey) ?? undefined; }
+    catch { return undefined; }
+  });
+  const lastVideoId = useRef(initialVideoId);
+  const rememberVideo = useCallback((videoId: string) => {
+    lastVideoId.current = videoId;
+    try { window.localStorage.setItem(playbackKey, videoId); }
+    catch { /* Keep the last video in memory if storage is unavailable. */ }
+  }, [playbackKey]);
   const [liveVideo, setLiveVideo] = useState<CameraVideo | null>(null);
   const [libraryTab, setLibraryTab] = useState<"videos" | "channels">("videos");
   const monitor = useChannelMonitor(supabase);
   function watch(videoId?: string) {
+    if (view === "watch" && !liveVideo && !videoId) return;
     setLiveVideo(null);
-    setInitialVideoId(videoId);
+    setInitialVideoId(videoId ?? lastVideoId.current);
     setView("watch");
   }
   async function watchLive(videoId: string) {
@@ -36,7 +47,7 @@ export function PersonalWorkspace({ supabase, userId, initialView }: { supabase:
     {view === "watch" && <>
       {monitor.error && <p className="channel-monitor-error" role="status">{monitor.error}<button className="admin-secondary" type="button" disabled={monitor.busy} onClick={() => void monitor.refresh(true)}>再確認</button></p>}
     </>}
-    <div className={`personal-stage${view === "add" ? " is-library" : ""}`}>{view === "watch" ? <PrivateWatch key={liveVideo?.youtubeVideoId ?? "collection"} supabase={supabase} userId={userId} initialVideoId={initialVideoId} liveVideo={liveVideo} notification={notification} onReturn={() => watch()} /> : <>
+    <div className={`personal-stage${view === "add" ? " is-library" : ""}`}>{view === "watch" ? <PrivateWatch key={liveVideo?.youtubeVideoId ?? "collection"} supabase={supabase} userId={userId} initialVideoId={initialVideoId} onVideoChange={rememberVideo} liveVideo={liveVideo} notification={notification} onReturn={() => watch()} /> : <>
       <nav className="scenery-list-tabs" aria-label="登録する種類"><button className="admin-secondary" type="button" aria-pressed={libraryTab === "videos"} onClick={() => setLibraryTab("videos")}>景色の登録・編集</button><button className="admin-secondary" type="button" aria-pressed={libraryTab === "channels"} onClick={() => setLibraryTab("channels")}>チャンネルの登録</button></nav>
       {libraryTab === "channels" ? <ChannelManager supabase={supabase} userId={userId} channels={monitor.channels} configured={monitor.configured} checking={monitor.busy} error={monitor.error} refresh={monitor.refresh} /> : <SubmissionManager supabase={supabase} userId={userId} onWatch={watch} />}
     </>}</div>

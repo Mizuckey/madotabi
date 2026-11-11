@@ -10,7 +10,7 @@ import { WatchScreen } from "@/components/player/WatchScreen";
 type Row = { id: string; title: string; youtube_video_id: string; night_view: boolean } & LocationColumns;
 
 /** AdminConsoleの権限確認後にだけマウント。RLS付きの候補一覧を本人のセッションで読む。 */
-export function PrivateWatch({ supabase, userId, initialVideoId, liveVideo, notification, onReturn }: { supabase: SupabaseClient; userId: string; initialVideoId?: string; liveVideo?: CameraVideo | null; notification?: ReactNode; onReturn?(): void }) {
+export function PrivateWatch({ supabase, userId, initialVideoId, onVideoChange, liveVideo, notification, onReturn }: { supabase: SupabaseClient; userId: string; initialVideoId?: string; onVideoChange?(videoId: string): void; liveVideo?: CameraVideo | null; notification?: ReactNode; onReturn?(): void }) {
   const [result, setResult] = useState<{ videos: CameraVideo[]; error: boolean } | null>(null);
 
   useEffect(() => {
@@ -35,5 +35,5 @@ export function PrivateWatch({ supabase, userId, initialVideoId, liveVideo, noti
     <WatchScreen videos={[liveVideo]} informationVideos={result?.videos ?? []} notification={notification} singleVideo />
   </>;
   if (!result) return <section className="admin-card" role="status">登録動画を読み込んでいます…</section>;
-  return <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId} notification={notification} />;
+  return <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId} onVideoChange={onVideoChange} notification={notification} />;
 }

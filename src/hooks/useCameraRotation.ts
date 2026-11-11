@@ -16,11 +16,25 @@ export function useCameraRotation(count: number, initialIndex = 0, eligibleIndic
   const remainingRef = useRef(DEFAULT_ROTATION_SECONDS * 1000);
   const timerRef = useRef<RotationTimer | null>(null);
   const [playbackStatus, setPlaybackStatus] = useState<PlaybackStatus>("loading");
+  const [visible, setVisible] = useState(() => typeof document === "undefined" || !document.hidden);
+  useEffect(() => {
+    const updateVisibility = () => {
+      if (document.hidden && timerRef.current) {
+        remainingRef.current = timerRef.current.remaining();
+        timerRef.current.cancel();
+        timerRef.current = null;
+      }
+      setVisible(!document.hidden);
+    };
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
+  }, []);
+
   const enabled = automatic && available.length > 1;
-  const counting = enabled && selection.index === index && playbackStatus === "playing";
+  const counting = visible && enabled && selection.index === index && playbackStatus === "playing";
 
   useEffect(() => {
-    if (!counting) return;
+    if (!counting || document.hidden) return;
     const timer = startRotationTimer({
       delayMs: remainingRef.current,
       onAdvance: () => {
@@ -81,5 +95,5 @@ export function useCameraRotation(count: number, initialIndex = 0, eligibleIndic
     setAutomatic(!automatic);
   }
 
-  return { index, automatic: enabled, counting, playbackStatus, onPlaybackChange, intervalSeconds, select, move, changeInterval, toggleAutomatic };
+  return { index, visible, automatic: enabled, counting, playbackStatus, onPlaybackChange, intervalSeconds, select, move, changeInterval, toggleAutomatic };
 }
