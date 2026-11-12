@@ -30,10 +30,15 @@ export function PrivateWatch({ supabase, userId, initialVideoId, onVideoChange, 
     return () => controller.abort();
   }, [supabase, userId]);
 
-  if (liveVideo) return <>
-    <div className="live-view-heading"><span>通知から開いたライブを固定表示中</span><button className="admin-secondary" type="button" onClick={onReturn}>景色の連続再生に戻る</button></div>
-    <WatchScreen videos={[liveVideo]} informationVideos={result?.videos ?? []} notification={notification} singleVideo />
-  </>;
+  if (liveVideo) return (
+    <WatchScreen
+      videos={[liveVideo]}
+      informationVideos={result?.videos ?? []}
+      notification={notification}
+      singleVideo
+      onReturnToPlaylist={onReturn}
+    />
+  );
   if (!result) return <section className="admin-card" role="status">登録動画を読み込んでいます…</section>;
   return <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId} onVideoChange={onVideoChange} notification={notification} />;
 }

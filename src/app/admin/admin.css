@@ -233,8 +233,11 @@
   .live-notifications button { min-height: 44px; }
 }
 .channel-monitor-error { flex-shrink: 0; margin: 0; color: #cbb398; font-size: 10px; max-height: 70px; overflow: auto; }
-.live-view-heading { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
-.personal-shell .live-view-heading + .watch-screen .watch-toolbar { display: none; }
+.live-view-heading { width: 100%; grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
+/* The wrapped playlist toolbar uses two 44px rows plus a gap and top padding. */
+@media (min-width: 601px) and (max-width: 850px) and (min-height: 501px) {
+  .live-view-toolbar { min-height: 100px; }
+}
 @media (max-width: 600px) { .live-view-heading { gap: 4px; } .live-view-heading button { padding: 8px; } }
 
 .location-picker { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }

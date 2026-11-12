@@ -11,9 +11,9 @@ import { ROTATION_INTERVALS } from "@/lib/rotation";
 import { useDaylight } from "@/hooks/useDaylight";
 import { canPlayScenery, locationKey } from "@/lib/daylight";
 
-type Props = { videos: CameraVideo[]; loadError?: boolean; singleVideo?: boolean; initialVideoId?: string; onVideoChange?(videoId: string): void; informationVideos?: CameraVideo[]; notification?: ReactNode };
+type Props = { onReturnToPlaylist?(): void; videos: CameraVideo[]; loadError?: boolean; singleVideo?: boolean; initialVideoId?: string; onVideoChange?(videoId: string): void; informationVideos?: CameraVideo[]; notification?: ReactNode };
 
-export function WatchScreen({ videos, loadError = false, singleVideo = false, initialVideoId, onVideoChange, informationVideos, notification }: Props) {
+export function WatchScreen({ videos, loadError = false, singleVideo = false, initialVideoId, onVideoChange, informationVideos, notification, onReturnToPlaylist }: Props) {
   const daylight = useDaylight(singleVideo ? [] : videos);
   const eligibleIndices = videos.flatMap((video, index) => singleVideo || canPlayScenery(video, daylight.readings, daylight.now) ? [index] : []);
   if (!videos.length) return (
@@ -32,10 +32,10 @@ export function WatchScreen({ videos, loadError = false, singleVideo = false, in
   }
 
   if (!eligibleIndices.length) return <div className="watch-screen"><section className="catalog-empty"><h2>現在、連続再生できる景色がありません</h2><p>夜景OFFの景色は、登録地点の日の出から日の入りまで再生します。地点未登録・日照時刻の取得中や取得失敗も対象外です。</p><p>日中になれば自動で再開します。日没後も流したい景色は「夜景ON」にしてください。</p><Link className="watch-home-link" href="/?view=add">景色リストで設定する →</Link></section>{notification && <div className="empty-live-notice">{notification}</div>}<InfoTicker videos={informationVideos ?? videos} /></div>;
-  return <PlaylistScreen key={JSON.stringify(videos.map(video => video.id))} videos={videos} eligibleIndices={eligibleIndices} singleVideo={singleVideo} initialVideoId={initialVideoId} onVideoChange={onVideoChange} informationVideos={informationVideos} notification={notification} />;
+  return <PlaylistScreen key={JSON.stringify(videos.map(video => video.id))} videos={videos} eligibleIndices={eligibleIndices} singleVideo={singleVideo} initialVideoId={initialVideoId} onVideoChange={onVideoChange} informationVideos={informationVideos} notification={notification} onReturnToPlaylist={onReturnToPlaylist} />;
 }
 
-function PlaylistScreen({ videos, eligibleIndices, singleVideo, initialVideoId, onVideoChange, informationVideos, notification }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId" | "onVideoChange" | "informationVideos" | "notification"> & { eligibleIndices: number[] }) {
+function PlaylistScreen({ videos, eligibleIndices, singleVideo, initialVideoId, onVideoChange, informationVideos, notification, onReturnToPlaylist }: Required<Pick<Props, "videos" | "singleVideo">> & Pick<Props, "initialVideoId" | "onVideoChange" | "informationVideos" | "notification" | "onReturnToPlaylist"> & { eligibleIndices: number[] }) {
   const rotation = useCameraRotation(videos.length, Math.max(0, videos.findIndex(video => video.youtubeVideoId === initialVideoId)), eligibleIndices);
   const video = videos[rotation.index];
   useEffect(() => {
@@ -51,13 +51,18 @@ function PlaylistScreen({ videos, eligibleIndices, singleVideo, initialVideoId, 
     <div className="watch-screen" data-selected-video={video.youtubeVideoId}>
       <CameraPlayer video={video} onPlaybackChange={reportPlayback} notification={notification} compact />
       <InfoTicker videos={informationVideos ?? videos} />
-      <section className="watch-toolbar" aria-label="再生切替" data-rotation-active={rotation.automatic}>
+      <section className={onReturnToPlaylist ? "watch-toolbar live-view-toolbar" : "watch-toolbar"} aria-label="再生切替" data-rotation-active={rotation.automatic}>
         {!singleVideo ? <>
           <div className="transport"><button type="button" className="watch-control" onClick={() => rotation.move(-1)} disabled={eligibleIndices.length < 2} aria-label="前のカメラ">←</button><button type="button" className="watch-control" onClick={() => rotation.move(1)} disabled={eligibleIndices.length < 2} aria-label="次のカメラ">→</button></div>
           <label className="watch-video-choice" htmlFor="video-select"><span className="sr-only">視聴するカメラ</span><select id="video-select" value={video.id} onChange={e => rotation.select(videos.findIndex(item => item.id === e.target.value))}>{eligibleIndices.map(index => videos[index]).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
           <label className="watch-interval" htmlFor="rotation-interval"><span>切替</span><select id="rotation-interval" value={rotation.intervalSeconds} disabled={eligibleIndices.length < 2} onChange={e => rotation.changeInterval(Number(e.target.value))}>{ROTATION_INTERVALS.map(seconds => <option key={seconds} value={seconds}>{seconds}秒</option>)}</select></label>
           <button className="watch-control rotation-toggle" type="button" disabled={eligibleIndices.length < 2} aria-pressed={rotation.automatic} onClick={rotation.toggleAutomatic}>{rotation.automatic ? "自動切替を停止" : "自動切替を再開"}</button>
-        </> : <Link className="watch-home-link" href="/">登録動画を連続視聴 →</Link>}
+        </> : onReturnToPlaylist ? (
+          <div className="live-view-heading">
+            <span>ライブを固定表示中</span>
+            <button className="admin-secondary" type="button" onClick={onReturnToPlaylist}>景色の連続再生に戻る</button>
+          </div>
+        ) : <Link className="watch-home-link" href="/">登録動画を連続視聴 →</Link>}
       </section>
     </div>
   );
