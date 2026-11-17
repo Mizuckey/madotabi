@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {locationQueryFromTitle,locationSearchTerms,parseLocations,locationFromRow,locationColumns,validCoordinates,searchLocations} from '../src/lib/location.ts';
-import {weatherUrl,weatherLabel,parseWeather,loadWeather} from '../src/lib/weather.ts';
+import {weatherUrl,weatherLabel,parseWeather,loadPlaylistWeather} from '../src/lib/weather.ts';
 
 test('タイトルの地名を残し、ライブ・解像度などを検索語から外す',()=>{
  assert.equal(locationQueryFromTitle('【LIVE・4K】札幌すすきの ライブカメラ'),'札幌すすきの');
@@ -56,21 +56,42 @@ test('気温nullや不正単位を0度と誤表示せず、未知の天気コー
  assert.throws(()=>parseWeather({...body,current_units:{temperature_2m:'°F'}}));
  assert.equal(weatherLabel(61),'雨');assert.equal(weatherLabel(97),'雷雨');assert.equal(weatherLabel(999),'天気不明');
 });
-test('同じ地点の並行取得を共有し、動画切替で再訪してもキャッシュを使う',async t=>{
- let calls=0;
- t.mock.method(globalThis,'fetch',async()=>{calls++;await Promise.resolve();return {ok:true,json:async()=>({current_units:{temperature_2m:'°C'},current:{temperature_2m:15,weather_code:0,time:'2026-11-05T14:15'}})}});
- const [first,second]=await Promise.all([loadWeather(34.1111,135.2222),loadWeather(34.1111,135.2222)]);
- assert.equal(calls,1);assert.equal(first,second);
- assert.equal(await loadWeather(34.1111,135.2222),first);assert.equal(calls,1);
- await loadWeather(34.1111,135.2222,true);assert.equal(calls,2);
+const forecast = temperature => ({
+ current_units: {temperature_2m: '°C'},
+ current: {temperature_2m: temperature, weather_code: 0, time: '2026-11-17T14:15'},
 });
 
-test('期限切れの天気は再取得し、取得失敗をキャッシュしない',async t=>{
- let now=1000000,calls=0;
- t.mock.method(Date,'now',()=>now);
- t.mock.method(globalThis,'fetch',async()=>{calls++;if(calls===1)throw new Error('offline');return {ok:true,json:async()=>({current_units:{temperature_2m:'°C'},current:{temperature_2m:18,weather_code:3,time:'2026-11-05T15:00'}})}});
- await assert.rejects(loadWeather(33.1111,134.2222));
- await loadWeather(33.1111,134.2222);assert.equal(calls,2);
- now+=16*60*1000;
- await loadWeather(33.1111,134.2222);assert.equal(calls,3);
+test('複数地点をまとめて取得し、欠損地点だけを再取得する', async t => {
+ const coordinates = [[34.1111,135.2222], [35.1111,136.2222]];
+ const calls = [];
+ const signal = new AbortController().signal;
+ t.mock.method(globalThis, 'fetch', async url => {
+  calls.push(new URL(url).searchParams.get('latitude'));
+  return {ok: true, json: async () => calls.length === 1 ? [forecast(15), forecast(null)] : forecast(17)};
+ });
+ const first = await loadPlaylistWeather(coordinates, signal);
+ assert.equal(first['34.1111,135.2222'].weather.temperature, 15);
+ assert.deepEqual(first['35.1111,136.2222'], {weather: null, error: true});
+ const second = await loadPlaylistWeather(coordinates, signal);
+ assert.equal(second['35.1111,136.2222'].weather.temperature, 17);
+ assert.deepEqual(calls, ['34.1111,35.1111', '35.1111']);
+});
+
+test('更新に失敗したときは前回値を期限付きで返す', async t => {
+ let now = 1000000;
+ let calls = 0;
+ const coordinates = [[33.1111,134.2222]];
+ const signal = new AbortController().signal;
+ t.mock.method(Date, 'now', () => now);
+ t.mock.method(globalThis, 'fetch', async () => {
+  if (++calls === 1) return {ok: true, json: async () => forecast(18)};
+  throw new Error('offline');
+ });
+ const first = await loadPlaylistWeather(coordinates, signal);
+ now += 16 * 60_000;
+ const stale = await loadPlaylistWeather(coordinates, signal);
+ assert.deepEqual(stale['33.1111,134.2222'], {...first['33.1111,134.2222'], error: true});
+ now += 44 * 60_000;
+ const expired = await loadPlaylistWeather(coordinates, signal);
+ assert.deepEqual(expired['33.1111,134.2222'], {weather: null, error: true});
 });

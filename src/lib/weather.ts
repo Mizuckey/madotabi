@@ -1,7 +1,12 @@
 export type CurrentWeather = { temperature: number; code: number; time: string };
 export const WEATHER_TTL_MS = 15 * 60 * 1000;
 const cache = new Map<string, { expires: number; value: CurrentWeather }>();
-const pending = new Map<string, Promise<CurrentWeather>>();
+type Coordinates = readonly [latitude: number, longitude: number];
+export type WeatherReading = { weather: CurrentWeather | null; error: boolean };
+const MAX_STALE_MS = 60 * 60 * 1000;
+const BATCH_SIZE = 10;
+
+export const weatherKey = (latitude: number, longitude: number) => `${latitude},${longitude}`;
 
 export function weatherLabel(code: number): string {
   if (code === 0) return "晴れ";
@@ -20,9 +25,24 @@ export function weatherLabel(code: number): string {
   return "天気不明";
 }
 export function weatherUrl(latitude: number, longitude: number): string {
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) throw new Error("Invalid coordinates");
+  return batchWeatherUrl([[latitude, longitude]]);
+}
+
+function batchWeatherUrl(locations: readonly Coordinates[]): string {
+  for (const [latitude, longitude] of locations) {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+      throw new Error("Invalid coordinates");
+    }
+  }
   const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.search = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude), current: "temperature_2m,weather_code", temperature_unit: "celsius", timezone: "Asia/Tokyo", forecast_days: "1" }).toString();
+  url.search = new URLSearchParams({
+    latitude: locations.map(([latitude]) => latitude).join(","),
+    longitude: locations.map(([, longitude]) => longitude).join(","),
+    current: "temperature_2m,weather_code",
+    temperature_unit: "celsius",
+    timezone: "Asia/Tokyo",
+    forecast_days: "1",
+  }).toString();
   return url.toString();
 }
 export function parseWeather(body: unknown): CurrentWeather {
@@ -31,19 +51,48 @@ export function parseWeather(body: unknown): CurrentWeather {
   if (!current || !units || units.temperature_2m !== "°C" || typeof current.temperature_2m !== "number" || !Number.isFinite(current.temperature_2m) || typeof current.weather_code !== "number" || !Number.isInteger(current.weather_code) || typeof current.time !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(current.time)) throw new Error("Incomplete weather");
   return { temperature: current.temperature_2m, code: current.weather_code, time: current.time };
 }
-export function loadWeather(latitude: number, longitude: number, force = false): Promise<CurrentWeather> {
-  const key = `${latitude},${longitude}`;
-  const cached = cache.get(key);
-  if (!force && cached && cached.expires > Date.now()) return Promise.resolve(cached.value);
-  const running = pending.get(key);
-  if (running) return running;
-  const request = fetch(weatherUrl(latitude, longitude), { signal: AbortSignal.timeout(8000) }).then(async response => {
-    if (!response.ok) throw new Error("Weather unavailable");
-    const value = parseWeather(await response.json());
-    if (cache.size >= 100 && !cache.has(key)) cache.delete(cache.keys().next().value!);
-    cache.set(key, { value, expires: Date.now() + WEATHER_TTL_MS });
-    return value;
-  }).finally(() => pending.delete(key));
-  pending.set(key, request);
-  return request;
+export async function loadPlaylistWeather(locations: readonly Coordinates[], signal: AbortSignal): Promise<Record<string, WeatherReading>> {
+  const results: Record<string, WeatherReading> = {};
+  const due = locations.filter(([latitude, longitude]) => {
+    const key = weatherKey(latitude, longitude);
+    const stored = cache.get(key);
+    if (!stored || stored.expires <= Date.now()) return true;
+    results[key] = { weather: stored.value, error: false };
+    return false;
+  });
+
+  for (let offset = 0; offset < due.length; offset += BATCH_SIZE) {
+    if (signal.aborted) break;
+    const batch = due.slice(offset, offset + BATCH_SIZE);
+    let rows: unknown[] = [];
+    try {
+      const response = await fetch(batchWeatherUrl(batch), {
+        signal: AbortSignal.any([signal, AbortSignal.timeout(12_000)]),
+      });
+      if (response.ok) {
+        const body: unknown = await response.json();
+        const entries = Array.isArray(body) ? body : [body];
+        if (entries.length === batch.length) rows = entries;
+      }
+    } catch {
+      // The next refresh retries these locations.
+    }
+    if (signal.aborted) break;
+
+    batch.forEach(([latitude, longitude], index) => {
+      const key = weatherKey(latitude, longitude);
+      try {
+        const weather = parseWeather(rows[index]);
+        if (cache.size >= 100 && !cache.has(key)) cache.delete(cache.keys().next().value!);
+        cache.set(key, { expires: Date.now() + WEATHER_TTL_MS, value: weather });
+        results[key] = { weather, error: false };
+      } catch {
+        const stored = cache.get(key);
+        const age = stored ? Date.now() - stored.expires + WEATHER_TTL_MS : Infinity;
+        results[key] = { weather: stored && age < MAX_STALE_MS ? stored.value : null, error: true };
+      }
+    });
+  }
+
+  return results;
 }

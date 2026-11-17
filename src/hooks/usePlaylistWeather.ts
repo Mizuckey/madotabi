@@ -2,27 +2,42 @@
 
 import { useEffect, useState } from "react";
 import type { CameraVideo } from "@/types/video";
-import { loadWeather, WEATHER_TTL_MS, type CurrentWeather } from "@/lib/weather";
+import { loadPlaylistWeather, weatherKey, type WeatherReading } from "@/lib/weather";
 
-type Reading = { weather: CurrentWeather | null; error: boolean };
+const RETRY_INTERVAL_MS = 2 * 60 * 1000;
+
 export function usePlaylistWeather(videos: CameraVideo[]) {
-  const coordinates = JSON.stringify([...new Map(videos.flatMap(video => video.location ? [[`${video.location.latitude},${video.location.longitude}`, [video.location.latitude, video.location.longitude]] as const] : [])).values()]);
-  const [results, setResults] = useState<Record<string, Reading>>({});
+  const coordinates = JSON.stringify([...new Map(videos.flatMap(video => video.location
+    ? [[weatherKey(video.location.latitude, video.location.longitude), [video.location.latitude, video.location.longitude]] as const]
+    : [])).values()]);
+  const [results, setResults] = useState<Record<string, WeatherReading>>({});
+
   useEffect(() => {
     const locations = JSON.parse(coordinates) as [number, number][];
     if (!locations.length) return;
-    let active = true;
-    const refresh = async (force = false) => {
-      const readings = await Promise.allSettled(locations.map(async ([latitude, longitude]) => {
-        const key = `${latitude},${longitude}`;
-        try { return [key, { weather: await loadWeather(latitude, longitude, force), error: false }] as const; }
-        catch { return [key, { weather: null, error: true }] as const; }
-      }));
-      if (active) setResults(Object.fromEntries(readings.flatMap(result => result.status === "fulfilled" ? [result.value] : [])));
-    };
+    const controller = new AbortController();
+    let running = false;
+
+    async function refresh() {
+      if (running || document.hidden) return;
+      running = true;
+      try {
+        const readings = await loadPlaylistWeather(locations, controller.signal);
+        if (!controller.signal.aborted) setResults(readings);
+      } finally {
+        running = false;
+      }
+    }
+
     void refresh();
-    const timer = setInterval(() => { void refresh(true); }, WEATHER_TTL_MS);
-    return () => { active = false; clearInterval(timer); };
+    const timer = setInterval(() => void refresh(), RETRY_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [coordinates]);
+
   return results;
 }
