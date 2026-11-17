@@ -5,7 +5,7 @@ import type { PlaybackStatus } from "@/lib/youtube-player";
 import { DEFAULT_ROTATION_SECONDS, ROTATION_INTERVALS, nextPlayableIndex, startRotationTimer, type RotationTimer } from "@/lib/rotation";
 
 /** 親は動画一覧の変更時にkeyを変え、選択位置を新しい一覧へリセットする。 */
-export function useCameraRotation(count: number, initialIndex = 0, eligibleIndices?: number[]) {
+export function useCameraRotation(count: number, initialIndex = 0, eligibleIndices?: number[], paused = false) {
   const restricted = eligibleIndices !== undefined;
   const availableKey = eligibleIndices?.join(",") ?? "";
   const available = useMemo(() => restricted ? availableKey.split(",").filter(Boolean).map(Number).filter(index => Number.isInteger(index) && index >= 0 && index < count) : Array.from({ length: count }, (_, index) => index), [restricted, availableKey, count]);
@@ -31,7 +31,7 @@ export function useCameraRotation(count: number, initialIndex = 0, eligibleIndic
   }, []);
 
   const enabled = automatic && available.length > 1;
-  const counting = visible && enabled && selection.index === index && playbackStatus === "playing";
+  const counting = !paused && visible && enabled && selection.index === index && playbackStatus === "playing";
 
   useEffect(() => {
     if (!counting || document.hidden) return;

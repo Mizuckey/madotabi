@@ -153,7 +153,7 @@ h1 { font-size: 22px; font-weight: 400; letter-spacing: 2px; margin: 0; }
 .watch-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0 0; }
 .watch-toolbar .transport { gap: 6px; }
 .watch-toolbar .watch-control { min-height: 44px; white-space: nowrap; }
-.watch-video-choice { flex: 1; min-width: 0; max-width: 560px; }
+.watch-video-choice { display: flex; align-items: center; flex: 1; min-width: 0; max-width: 560px; }
 .watch-toolbar select { width: 100%; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid #4b6051; border-radius: 5px; background: #152019; color: #d0e0d4; font: inherit; font-size: 12px; text-overflow: ellipsis; }
 .watch-interval { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; flex-shrink: 0; }
 .watch-interval select { width: 84px; }

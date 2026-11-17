@@ -2,6 +2,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { SceneryEditForm, type SceneryUpdate } from "./SceneryEditForm";
 import { LocationPicker } from "@/components/camera/LocationPicker";
 import { locationColumns, locationFromRow } from "@/lib/location";
 import type { CameraLocation, LocationColumns } from "@/types/location";
@@ -29,8 +30,7 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
   const [loading, setLoading] = useState(true);
   const [changing, setChanging] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [editing, setEditing] = useState<{ id: string; title: string; nightView: boolean; location: CameraLocation | null } | null>(null);
-  const [editError, setEditError] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
   const [actionError, setActionError] = useState("");
   const [message, setMessage] = useState("");
@@ -117,21 +117,18 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
     finally { setChanging(false); }
   }
 
-  async function saveEdit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!editing || busy) return;
-    const title = editing.title.trim();
-    if (!title) { setEditError("タイトルを入力してください。"); return; }
-    if (title.length > 100) { setEditError("タイトルは100文字以内で入力してください。"); return; }
-    setChanging(true); setEditError(""); setMessage("");
+  async function saveEdit(id: string, update: SceneryUpdate) {
+    setChanging(true);
+    setMessage("");
     try {
-      const { data, error } = await supabase.from("camera_submissions").update({ title, night_view: editing.nightView, ...locationColumns(editing.location) }).eq("id", editing.id).eq("created_by", userId).select(fields).single<Submission>();
-      if (error || !data) throw new Error("Edit failed");
+      const { data, error } = await supabase.from("camera_submissions").update(update).eq("id", id).eq("created_by", userId).select(fields).single<Submission>();
+      if (error) throw error;
       setItems(current => current.map(item => item.id === data.id ? data : item));
       setEditing(null);
       setMessage("景色の情報を保存しました。");
-    } catch { setEditError("保存結果を確認できませんでした。入力は残しています。再度保存するか、リストを更新して確認してください。"); }
-    finally { setChanging(false); }
+    } finally {
+      setChanging(false);
+    }
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
@@ -192,19 +189,21 @@ export function SubmissionManager({ supabase, userId, onWatch }: { supabase: Sup
           <><p className="admin-field-hint" id="reorder-help">左のハンドルをドラッグして並び替えます。キーボードはSpaceでつかみ、上下キーで移動、Enterで保存できます。</p><p className="sr-only" role="status">{drag.announcement}</p><ul className="admin-items">{visible.map((item, index) => (
             <li key={item.id} className="admin-item" data-scenery-id={item.id} data-dragging={drag.source === item.id} data-drop-target={drag.target === item.id && drag.source !== item.id}><div className="admin-item-top">{!showDeleted && <button className="scenery-drag-handle" type="button" disabled={busy || !!editing} aria-label={`${item.title}をドラッグして並び替え`} aria-describedby="reorder-help" {...drag.handles(item.id)}><svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true"><path d="M5 3h1m4 0h1M5 9h1m4 0h1M5 15h1m4 0h1" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg></button>}<span className="admin-item-label">{showDeleted ? "削除済み" : `${index + 1} 番目`}</span><time dateTime={item.created_at}>{new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.created_at))}</time></div><h3 title={item.title || "タイトル未設定"}>{item.title || "タイトル未設定"}</h3><a className="admin-video-link" href={item.youtube_url} target="_blank" rel="noopener noreferrer">{item.youtube_url}<span aria-hidden="true"> ↗</span></a>{item.location_name && <p className="scenery-location">天気の地点：{item.location_name}</p>}<p className="scenery-sunlight">{sunlight(item)}</p>
               <div className="admin-video-actions">
-                <button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing({ id: item.id, title: item.title, nightView: item.night_view, location: locationFromRow(item) }); setEditError(""); setConfirmDelete(null); }}>編集</button>
+                <button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing(item.id); setConfirmDelete(null); }}>編集</button>
                 {showDeleted ? <button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, false)}>リストに戻す</button> : <>
                   <button className="admin-secondary" type="button" disabled={busy} onClick={() => onWatch(item.youtube_video_id)}>この景色を見る →</button>
                   <button className="admin-text-button" type="button" disabled={busy} onClick={() => { setConfirmDelete(item.id); setEditing(null); }}>削除</button>
                 </>}
               </div>
-              {editing?.id === item.id && <form className="admin-form scenery-edit-form" onSubmit={saveEdit} aria-label="景色を編集">
-                <label htmlFor={`edit-title-${item.id}`}>タイトル</label><input id={`edit-title-${item.id}`} required value={editing.title} maxLength={100} disabled={busy} onChange={e => setEditing({ ...editing, title: e.target.value })} />
-                <LocationPicker title={editing.title} value={editing.location} onChange={location => setEditing({ ...editing, location })} disabled={busy} />
-                <label className="night-view-option"><input type="checkbox" checked={editing.nightView} disabled={busy} onChange={event => setEditing({ ...editing, nightView: event.target.checked })} />夜景ON（日没後も再生）</label>
-                {editError && <p className="admin-error" role="alert">{editError}</p>}
-                <div className="admin-video-actions"><button className="admin-primary" type="submit" disabled={busy}>{changing ? "保存中…" : "変更を保存"}</button><button className="admin-secondary" type="button" disabled={busy} onClick={() => { setEditing(null); setEditError(""); }}>キャンセル</button></div>
-              </form>}
+              {editing === item.id && (
+                <SceneryEditForm
+                  key={item.id}
+                  video={{ id: item.id, title: item.title, youtubeVideoId: item.youtube_video_id, location: locationFromRow(item), nightView: item.night_view }}
+                  busy={busy}
+                  onSave={update => saveEdit(item.id, update)}
+                  onCancel={() => setEditing(null)}
+                />
+              )}
               {confirmDelete === item.id && !showDeleted && <div className="scenery-delete-confirm" role="group" aria-label="景色の削除確認"><p>この景色を再生リストから削除しますか？ 後から戻せます。</p><button className="admin-secondary" type="button" disabled={busy} onClick={() => setConfirmDelete(null)}>残す</button><button className="admin-secondary" type="button" disabled={busy} onClick={() => changeDeleted(item, true)}>削除する</button></div>}
             </li>
           ))}</ul></>

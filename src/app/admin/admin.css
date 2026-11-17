@@ -258,8 +258,8 @@
 /* BGM is a separate external-link picker; opening it does not remount the video. */
 .bgm-trigger { position: absolute !important; top: calc(2px + env(safe-area-inset-top)); right: calc(88px + max(16px, env(safe-area-inset-right))); width: 140px; min-width: 0; min-height: 44px; padding: 8px !important; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .compact-nav-label { display: none; }
-.bgm-dialog { position: fixed; margin: auto; inset: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); padding: 20px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--background); overflow: auto; overscroll-behavior: contain; }
-.bgm-dialog::backdrop { background: #070b09b8; }
+:is(.bgm-dialog, .scenery-edit-dialog) { position: fixed; margin: auto; inset: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); padding: 20px; border: 1px solid var(--border); border-radius: 10px; color: var(--text); background: var(--background); overflow: auto; overscroll-behavior: contain; }
+:is(.bgm-dialog, .scenery-edit-dialog)::backdrop { background: #070b09b8; }
 .bgm-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .bgm-dialog-heading h2 { margin: 0; font-size: 18px; font-weight: 400; }
 .bgm-add-form { margin: 16px 0; }
@@ -283,8 +283,11 @@
   .wide-nav-label { display: none; }
   .compact-nav-label { display: inline; }
   .bgm-trigger { right: calc(64px + max(8px, env(safe-area-inset-right))); width: 88px; min-width: 0; font-size: 10px; }
-  .bgm-dialog { width: calc(100vw - 16px); padding: 14px; max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  :is(.bgm-dialog, .scenery-edit-dialog) { width: calc(100vw - 16px); padding: 14px; max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
 }
 
 .bgm-trigger-title { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .bgm-trigger .status-dot { flex-shrink: 0; }
+
+.scenery-edit-dialog h2 { margin: 0; font-size: 18px; font-weight: 400; }
+.personal-shell .watch-toolbar .watch-edit { flex: none; padding-inline: 8px; }
