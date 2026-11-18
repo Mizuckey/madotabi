@@ -201,3 +201,22 @@ h1 { font-size: 22px; font-weight: 400; letter-spacing: 2px; margin: 0; }
   .watch-interval select { width: 70px; padding-left: 4px; padding-right: 4px; }
   .compact-player .player-caption > span { display: none; }
 }
+
+.ticker-weather { display: inline-flex; align-items: center; gap: 7px; }
+.weather-symbol { display: inline-flex; align-items: center; color: #bdd0c5; flex-shrink: 0; }
+.window-loading { flex: 1; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; color: var(--muted); font-size: 11px; letter-spacing: .08em; }
+.loading-window { position: relative; width: 68px; height: 82px; border: 1px solid #7b9387; border-radius: 32px 32px 2px 2px; perspective: 220px; background: #131c18; }
+.loading-window::after { content: ""; position: absolute; left: -7px; right: -7px; bottom: -5px; border-bottom: 1px solid #7b9387; }
+.loading-window-sky { position: absolute; inset: 5px; border-radius: 28px 28px 0 0; background: radial-gradient(circle at 65% 35%, #c7d8bc88 0 6px, transparent 7px), linear-gradient(155deg, #56746766, #1c322a); animation: window-sky 1.4s ease-out both; }
+.loading-window-pane { position: absolute; top: 4px; bottom: 4px; width: calc(50% - 4px); background: #18251f; border: 1px solid #829b8c; backface-visibility: hidden; }
+.loading-window-pane::after { content: ""; position: absolute; top: 48%; left: 0; right: 0; border-top: 1px solid #829b8c; }
+.loading-window-left { left: 4px; border-radius: 28px 0 0 0; transform-origin: left; animation: window-open-left 1.4s ease-in-out both; }
+.loading-window-right { right: 4px; border-radius: 0 28px 0 0; transform-origin: right; animation: window-open-right 1.4s ease-in-out both; }
+@keyframes window-open-left { from { transform: rotateY(0); } to { transform: rotateY(-65deg); } }
+@keyframes window-open-right { from { transform: rotateY(0); } to { transform: rotateY(65deg); } }
+@keyframes window-sky { from { opacity: .15; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .loading-window-pane, .loading-window-sky { animation: none; }
+  .loading-window-left { transform: rotateY(-65deg); }
+  .loading-window-right { transform: rotateY(65deg); }
+}

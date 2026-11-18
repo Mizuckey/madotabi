@@ -3,6 +3,7 @@
 import type { User } from "@supabase/supabase-js";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 import { useEffect, useState, type FormEvent } from "react";
+import { WindowLoading } from "@/components/layout/WindowLoading";
 import { PersonalWorkspace } from "./PersonalWorkspace";
 
 export function AdminConsole({ supabaseUrl, publishableKey, initialView = "watch" }: { supabaseUrl: string; publishableKey: string; initialView?: "add" | "watch" }) {
@@ -78,7 +79,7 @@ export function AdminConsole({ supabaseUrl, publishableKey, initialView = "watch
     finally { setBusy(false); }
   }
 
-  if (!sessionReady) return <section className="admin-card admin-loading" role="status">ログイン状態を確認しています…</section>;
+  if (!sessionReady) return <WindowLoading message="ログイン状態を確認しています…" />;
 
   if (!user) return (
     <div className="admin-auth-layout">
@@ -111,7 +112,7 @@ export function AdminConsole({ supabaseUrl, publishableKey, initialView = "watch
     <>
       <div className="admin-session"><div><span className="admin-session-dot" />ログイン中 <span className="admin-session-email">{user.email}</span></div><button className="admin-secondary" onClick={signOut} disabled={busy}>{busy ? "処理中…" : "ログアウト"}</button></div>
       {error && <p className="admin-error" role="alert">{error}</p>}
-      {!currentAccess ? <section className="admin-card" role="status">利用権限を確認しています…</section> : currentAccess.error ? (
+      {!currentAccess ? <WindowLoading message="利用権限を確認しています…" /> : currentAccess.error ? (
         <section className="admin-card"><h2>利用権限を確認できませんでした</h2><p>通信状況を確認して、再度お試しください。</p><button className="admin-secondary" onClick={() => { setAccess(null); setAccessRetry(v => v + 1); }}>再確認</button></section>
       ) : !currentAccess.allowed ? (
         <section className="admin-card"><h2>このアカウントでは利用できません</h2><p>利用を許可したメールアドレスか、メール確認が完了しているかをご確認ください。</p></section>

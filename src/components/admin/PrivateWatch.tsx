@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { CameraVideo } from "@/types/video";
 import { locationFromRow } from "@/lib/location";
 import type { LocationColumns } from "@/types/location";
+import { WindowLoading } from "@/components/layout/WindowLoading";
 import { WatchScreen } from "@/components/player/WatchScreen";
 import { SceneryEditForm, type SceneryUpdate } from "./SceneryEditForm";
 
@@ -83,7 +84,7 @@ export function PrivateWatch({ supabase, userId, initialVideoId, onVideoChange, 
       onReturnToPlaylist={onReturn}
     />
   );
-  if (!result) return <section className="admin-card" role="status">登録動画を読み込んでいます…</section>;
+  if (!result) return <WindowLoading />;
   return <>
     <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId}
       onVideoChange={onVideoChange} notification={notification} onEditVideo={openEditor} editing={!!editing} />

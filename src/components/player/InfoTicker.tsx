@@ -3,7 +3,8 @@
 import { useState } from "react";
 import type { CameraVideo } from "@/types/video";
 import { usePlaylistWeather } from "@/hooks/usePlaylistWeather";
-import { weatherKey, weatherLabel } from "@/lib/weather";
+import { WeatherIcon } from "@/components/weather/WeatherIcon";
+import { weatherKey } from "@/lib/weather";
 
 export function InfoTicker({ videos }: { videos: CameraVideo[] }) {
   const [paused, setPaused] = useState(false);
@@ -12,8 +13,16 @@ export function InfoTicker({ videos }: { videos: CameraVideo[] }) {
   const information = videos.map(video => {
     const location = video.location;
     const result = location ? results[weatherKey(location.latitude, location.longitude)] : null;
-    const weather = !location ? "天気未登録" : !result ? "天気取得中…" : !result.weather ? "天気取得不可" : `${weatherLabel(result.weather.code)} ${result.weather.temperature.toFixed(1)}°C${result.error ? "（前回値）" : ""}`;
-    return <span className="ticker-entry" key={video.id}><span className="ticker-title">{video.title}</span><span title={result?.weather ? `${result.weather.time}（日本時間）の予報値` : undefined}>{weather}</span></span>;
+    const weather = result?.weather;
+    return <span className="ticker-entry" key={video.id}>
+      <span className="ticker-title">{video.title}</span>
+      <span className="ticker-weather" title={weather ? `${weather.time}（日本時間）の予報値` : undefined}>
+        {weather ? <>
+          <WeatherIcon code={weather.code} />
+          <span>{weather.temperature.toFixed(1)}°C{result.error ? "（前回値）" : ""}</span>
+        </> : !location ? "天気未登録" : !result ? "天気取得中…" : "天気取得不可"}
+      </span>
+    </span>;
   });
   const duration = Math.max(48, videos.reduce((length, video) => length + video.title.length * 9 + 220, 0) / 30);
   return <section className={`info-strip${paused ? " is-paused" : ""}`} aria-label="登録した景色のタイトルと天気">
