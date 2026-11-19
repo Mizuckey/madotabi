@@ -3,7 +3,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChannelWatch } from "@/types/channel";
-import type { CameraVideo } from "@/types/video";
 import { channelNotifications, CHANNEL_CHECK_MS } from "@/lib/youtube-channel";
 import { startVisibleChannelChecks } from "@/lib/channel-monitor";
 
@@ -12,7 +11,7 @@ export function useChannelMonitor(supabase: SupabaseClient) {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const [unavailable, setUnavailable] = useState<Set<string>>(() => new Set());
   const requestRef = useRef<AbortController | null>(null);
   const lastRequest = useRef(0);
 
@@ -27,6 +26,7 @@ export function useChannelMonitor(supabase: SupabaseClient) {
       if (!response.ok) throw new Error("Check unavailable");
       const data = await response.json() as { channels: ChannelWatch[]; configured: boolean };
       if (controller.signal.aborted) return;
+      setUnavailable(new Set());
       setChannels(data.channels); setConfigured(data.configured); setError("");
     } catch { if (!controller.signal.aborted) { setError("チャンネルを確認できませんでした。通信状況を確認して再度お試しください。"); lastRequest.current = Date.now() - CHANNEL_CHECK_MS + 60_000; } }
     finally { if (requestRef.current === controller) { requestRef.current = null; setBusy(false); } }
@@ -40,19 +40,12 @@ export function useChannelMonitor(supabase: SupabaseClient) {
     };
   }, [refresh]);
 
-  const verify = async (videoId: string): Promise<CameraVideo | null> => {
-    if (document.visibilityState !== "visible") return null;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Session unavailable");
-      const response = await fetch(`/api/channels/check?video=${encodeURIComponent(videoId)}`, { method: "POST", headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store", signal: AbortSignal.timeout(15_000) });
-      if (response.status === 409) { setDismissed(current => new Set(current).add(videoId)); setError("このライブは終了したか、埋め込みで再生できなくなりました。"); return null; }
-      if (!response.ok) throw new Error("Verification failed");
-      const result = await response.json() as { video?: CameraVideo };
-      if (!result.video) throw new Error("Live unavailable");
-      setError(""); return result.video;
-    } catch { setError("ライブの状態を確認できませんでした。もう一度お試しください。"); return null; }
-  };
+  const skipLive = useCallback((videoId: string) => {
+    setUnavailable(current => current.has(videoId) ? current : new Set(current).add(videoId));
+  }, []);
 
-  return { channels, configured, busy, error, refresh, verify, notifications: configured === true ? channelNotifications(channels, dismissed) : [], dismiss: (videoId: string) => setDismissed(current => new Set(current).add(videoId)) };
+  return {
+    channels, configured, busy, error, refresh, skipLive,
+    liveVideos: configured === true ? channelNotifications(channels, unavailable).map(notice => notice.video) : [],
+  };
 }

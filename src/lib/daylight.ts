@@ -53,7 +53,7 @@ export function solarDay(reading: SolarReading | undefined, now: number): SolarD
   return !reading?.error ? reading?.days.find(day => day.date === japanDate(now)) : undefined;
 }
 export function canPlayScenery(video: CameraVideo, readings: Record<string, SolarReading>, now: number): boolean {
-  if (video.nightView) return true;
+  if (video.channelLive || video.nightView) return true;
   if (!video.location) return false;
   const day = solarDay(readings[locationKey(video.location.latitude, video.location.longitude)], now);
   return !!day && now >= day.sunrise && now < day.sunset;

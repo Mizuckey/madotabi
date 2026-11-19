@@ -44,8 +44,8 @@ export function ChannelManager({ supabase, userId, channels, configured, checkin
   }
 
   return <section className="admin-card channel-manager" aria-labelledby="channel-manager-title">
-    <h2 id="channel-manager-title">ライブを待つチャンネル <span className="admin-count">{enabledCount} / {MAX_WATCHED_CHANNELS}</span></h2>
-    <p className="admin-field-hint">窓旅を開いている間だけ、チャンネルごとに最短30分間隔で確認します。最大5件。配信を見つけると視聴画面に通知します。</p>
+    <h2 id="channel-manager-title">連続再生するチャンネル <span className="admin-count">{enabledCount} / {MAX_WATCHED_CHANNELS}</span></h2>
+    <p className="admin-field-hint">窓旅を開いている間だけ、チャンネルごとに最短30分間隔で確認します。最大5件。配信中のライブを景色の連続再生に自動で追加します。</p>
     {configured === false && <p className="admin-notice" role="status">チャンネルは登録できます。ライブの確認にはYouTube Data APIキーの設定が必要です。</p>}
     {configured === null && !error && <p role="status">チャンネルを読み込んでいます…</p>}
     {(saveError || error) && <p className="admin-error" role="alert">{saveError || error}</p>}

@@ -4,13 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PlaybackStatus } from "@/lib/youtube-player";
 import { DEFAULT_ROTATION_SECONDS, ROTATION_INTERVALS, nextPlayableIndex, startRotationTimer, type RotationTimer } from "@/lib/rotation";
 
-/** 親は動画一覧の変更時にkeyを変え、選択位置を新しい一覧へリセットする。 */
-export function useCameraRotation(count: number, initialIndex = 0, eligibleIndices?: number[], paused = false) {
+/** 動画の追加・削除時もIDで選択位置を追跡する。 */
+export function useCameraRotation(count: number, initialIndex = 0, eligibleIndices?: number[], paused = false, orderedVideoIds?: string[]) {
+  const videoIdsKey = orderedVideoIds?.join(",");
+  const videoIds = useMemo(() => videoIdsKey === undefined ? undefined : videoIdsKey.split(","), [videoIdsKey]);
   const restricted = eligibleIndices !== undefined;
   const availableKey = eligibleIndices?.join(",") ?? "";
   const available = useMemo(() => restricted ? availableKey.split(",").filter(Boolean).map(Number).filter(index => Number.isInteger(index) && index >= 0 && index < count) : Array.from({ length: count }, (_, index) => index), [restricted, availableKey, count]);
-  const [selection, setSelection] = useState({ index: initialIndex });
-  const index = nextPlayableIndex(selection.index, count, available, 1, true);
+  const [selection, setSelection] = useState({ index: initialIndex, id: videoIds?.[initialIndex] });
+  const trackedIndex = selection.id ? videoIds?.indexOf(selection.id) ?? -1 : -1;
+  if (trackedIndex >= 0 && trackedIndex !== selection.index) {
+    setSelection({ index: trackedIndex, id: selection.id });
+  }
+  const selectedIndex = trackedIndex >= 0 ? trackedIndex : selection.index;
+  const index = nextPlayableIndex(selectedIndex, count, available, 1, true);
   const [automatic, setAutomatic] = useState(true);
   const [intervalSeconds, setIntervalSeconds] = useState<number>(DEFAULT_ROTATION_SECONDS);
   const remainingRef = useRef(DEFAULT_ROTATION_SECONDS * 1000);
@@ -31,7 +38,7 @@ export function useCameraRotation(count: number, initialIndex = 0, eligibleIndic
   }, []);
 
   const enabled = automatic && available.length > 1;
-  const counting = !paused && visible && enabled && selection.index === index && playbackStatus === "playing";
+  const counting = !paused && visible && enabled && selectedIndex === index && playbackStatus === "playing";
 
   useEffect(() => {
     if (!counting || document.hidden) return;
@@ -41,7 +48,8 @@ export function useCameraRotation(count: number, initialIndex = 0, eligibleIndic
         timerRef.current = null;
         setPlaybackStatus("loading");
         remainingRef.current = intervalSeconds * 1000;
-        setSelection(current => ({ index: nextPlayableIndex(current.index, count, available) }));
+        const next = nextPlayableIndex(index, count, available);
+        setSelection({ index: next, id: videoIds?.[next] });
       },
     });
     timerRef.current = timer;
@@ -52,7 +60,7 @@ export function useCameraRotation(count: number, initialIndex = 0, eligibleIndic
         timerRef.current = null;
       }
     };
-  }, [counting, intervalSeconds, selection, count, available]);
+  }, [counting, intervalSeconds, selection, count, available, index, videoIds]);
 
   const resetClock = useCallback((durationMs: number) => {
     timerRef.current?.cancel();
@@ -61,23 +69,24 @@ export function useCameraRotation(count: number, initialIndex = 0, eligibleIndic
   }, []);
 
   const onPlaybackChange = useCallback((status: PlaybackStatus) => {
-    if (selection.index !== index) { resetClock(intervalSeconds * 1000); setSelection({ index }); }
+    if (selectedIndex !== index || selection.id !== videoIds?.[index]) { resetClock(intervalSeconds * 1000); setSelection({ index, id: videoIds?.[index] }); }
     else if (status !== "playing") resetClock(timerRef.current?.remaining() ?? remainingRef.current);
     setPlaybackStatus(status);
-  }, [resetClock, selection.index, index, intervalSeconds]);
+  }, [resetClock, selectedIndex, selection.id, index, intervalSeconds, videoIds]);
 
-  function select(index: number) {
-    if (!Number.isInteger(index) || !available.includes(index)) return;
+  function select(nextIndex: number) {
+    if (!Number.isInteger(nextIndex) || !available.includes(nextIndex)) return;
     resetClock(intervalSeconds * 1000);
-    if (index !== selection.index) setPlaybackStatus("loading");
-    setSelection({ index });
+    if (nextIndex !== index) setPlaybackStatus("loading");
+    setSelection({ index: nextIndex, id: videoIds?.[nextIndex] });
   }
 
   function move(direction: 1 | -1) {
     if (available.length < 2) return;
     resetClock(intervalSeconds * 1000);
     setPlaybackStatus("loading");
-    setSelection({ index: nextPlayableIndex(index, count, available, direction) });
+    const next = nextPlayableIndex(index, count, available, direction);
+    setSelection({ index: next, id: videoIds?.[next] });
   }
 
   function changeInterval(seconds: number) {

@@ -1,12 +1,13 @@
 "use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CameraVideo } from "@/types/video";
 import { locationFromRow } from "@/lib/location";
 import type { LocationColumns } from "@/types/location";
 import { WindowLoading } from "@/components/layout/WindowLoading";
 import { WatchScreen } from "@/components/player/WatchScreen";
+import { combinePlaylist } from "@/lib/playlist";
 import { SceneryEditForm, type SceneryUpdate } from "./SceneryEditForm";
 
 const fields = "id,title,youtube_video_id,location_name,latitude,longitude,night_view";
@@ -23,13 +24,18 @@ function toVideo(row: Row): CameraVideo {
 }
 
 /** AdminConsoleの権限確認後にだけマウント。RLS付きの候補一覧を本人のセッションで読む。 */
-export function PrivateWatch({ supabase, userId, initialVideoId, onVideoChange, liveVideo, liveVideos = [], onWatchLive, notification, onReturn }: { supabase: SupabaseClient; userId: string; initialVideoId?: string; onVideoChange?(videoId: string): void; liveVideo?: CameraVideo | null; liveVideos?: CameraVideo[]; onWatchLive?(videoId: string): Promise<void>; notification?: ReactNode; onReturn?(): void }) {
+export function PrivateWatch({ supabase, userId, initialVideoId, onVideoChange, liveVideos = [], onUnavailableLive }: {
+  supabase: SupabaseClient;
+  userId: string;
+  initialVideoId?: string;
+  onVideoChange?(videoId: string): void;
+  liveVideos?: CameraVideo[];
+  onUnavailableLive?(videoId: string): void;
+}) {
   const [result, setResult] = useState<{ videos: CameraVideo[]; error: boolean } | null>(null);
 
   const [editing, setEditing] = useState<CameraVideo | null>(null);
   const [saving, setSaving] = useState(false);
-  const [switchingLive, setSwitchingLive] = useState(false);
-  const switchingRef = useRef(false);
   const [saved, setSaved] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -77,50 +83,10 @@ export function PrivateWatch({ supabase, userId, initialVideoId, onVideoChange, 
     return () => controller.abort();
   }, [supabase, userId]);
 
-  async function switchLive(videoId: string) {
-    if (!onWatchLive || switchingRef.current || videoId === liveVideo?.youtubeVideoId) return;
-    switchingRef.current = true;
-    setSwitchingLive(true);
-    try {
-      await onWatchLive(videoId);
-    } finally {
-      switchingRef.current = false;
-      setSwitchingLive(false);
-    }
-  }
-
-  if (liveVideo) {
-    const choices = [...new Map([...liveVideos, liveVideo].map(video => [video.youtubeVideoId, video])).values()];
-    const currentIndex = choices.findIndex(video => video.youtubeVideoId === liveVideo.youtubeVideoId);
-    const controls = <>
-      <div className="transport">
-        <button className="watch-control" type="button" aria-label="前のライブ"
-          disabled={switchingLive || !onWatchLive || choices.length < 2}
-          onClick={() => void switchLive(choices[(currentIndex - 1 + choices.length) % choices.length].youtubeVideoId)}>←</button>
-        <button className="watch-control" type="button" aria-label="次のライブ"
-          disabled={switchingLive || !onWatchLive || choices.length < 2}
-          onClick={() => void switchLive(choices[(currentIndex + 1) % choices.length].youtubeVideoId)}>→</button>
-      </div>
-      <label className="watch-video-choice" htmlFor="live-video-select">
-        <span className="sr-only">視聴するライブ</span>
-        <select id="live-video-select" value={liveVideo.youtubeVideoId}
-          disabled={switchingLive || !onWatchLive || choices.length < 2}
-          onChange={event => void switchLive(event.target.value)}>
-          {choices.map(video => <option key={video.youtubeVideoId} value={video.youtubeVideoId}>{video.title}</option>)}
-        </select>
-      </label>
-      <button className="admin-secondary live-return" type="button" onClick={onReturn}>連続再生に戻る</button>
-      {switchingLive && <span className="sr-only" role="status">ライブの状態を確認しています…</span>}
-    </>;
-    return (
-      <WatchScreen videos={[liveVideo]} informationVideos={result?.videos ?? []}
-        notification={notification} singleVideo onReturnToPlaylist={onReturn} liveControls={controls} />
-    );
-  }
   if (!result) return <WindowLoading />;
   return <>
-    <WatchScreen videos={result.videos} loadError={result.error} initialVideoId={initialVideoId}
-      onVideoChange={onVideoChange} notification={notification} onEditVideo={openEditor} editing={!!editing} />
+    <WatchScreen videos={combinePlaylist(result.videos, liveVideos)} informationVideos={result.videos} onUnavailableLive={onUnavailableLive} loadError={result.error} initialVideoId={initialVideoId}
+      onVideoChange={onVideoChange} onEditVideo={openEditor} editing={!!editing} />
     {saved && <p className="sr-only" role="status">景色の変更を保存しました。</p>}
     <dialog className="scenery-edit-dialog" ref={dialog} aria-labelledby="current-scenery-edit-title"
       onCancel={event => { if (saving) event.preventDefault(); }} onClose={() => setEditing(null)}>

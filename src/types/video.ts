@@ -7,4 +7,5 @@ export type CameraVideo = {
   youtubeVideoId: string;
   location?: CameraLocation | null;
   nightView?: boolean;
+  channelLive?: boolean;
 };
