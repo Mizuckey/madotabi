@@ -291,3 +291,8 @@
 
 .scenery-edit-dialog h2 { margin: 0; font-size: 18px; font-weight: 400; }
 .personal-shell .watch-toolbar .watch-edit { flex: none; padding-inline: 8px; }
+
+.live-view-toolbar .live-return { flex-shrink: 0; white-space: nowrap; min-height: 44px; }
+@media (max-width: 600px) {
+  .live-view-toolbar .live-return { grid-column: 1 / -1; justify-self: end; }
+}
